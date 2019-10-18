@@ -1,0 +1,23 @@
+{
+  "name": "recit",
+  "version": "1.0.0",
+  "description": "V 1.0 of recit api",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon app.js"
+  },
+  "author": "Matt Wawiorka",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "express-graphql": "^0.9.0",
+    "graphql": "^14.5.8",
+    "mysql2": "^1.7.0",
+    "sequelize": "^5.19.6"
+  },
+  "devDependencies": {
+    "nodemon": "^1.19.4"
+  }
+}
