@@ -1,4 +1,4 @@
-// User
+// User CRUD
 const typeDef = `
     type User {
         id: ID!
@@ -18,6 +18,17 @@ const typeDef = `
         gender: String!
         status: String
     }
+
+    type Query {
+        users: [User!]!
+        user(id: ID!): User! 
+    }
+
+    type Mutation {
+        createUser(userInput: userInput): User!
+        updateUser(id: ID!, userInput: userInput): User
+        deleteUser(id: ID!): Boolean
+    }
 `;
 
-exports.typeDef = typeDef;
+module.exports = typeDef;

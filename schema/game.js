@@ -1,4 +1,4 @@
-// Game
+// Game CRUD
 const typeDef = `
     type Game {
         id: ID!
@@ -25,6 +25,20 @@ const typeDef = `
         image: String
         public: Boolean!
     }
+
+    type Query {
+        games: [Game!]!
+        game(id: ID!): Game!
+    }
+
+    type Mutation {
+        createGame(gameInput: gameInput): Game
+        joinGame(gameId: ID!): Boolean
+        interestGame(gameId: ID!): Boolean
+        leaveGame(gameId: ID!): Boolean
+        updateGame(id: ID!, gameInput: gameInput): Game
+        deleteGame(id: ID!): Boolean
+    }
 `;
 
-exports.typeDef = typeDef;
+module.exports = typeDef;

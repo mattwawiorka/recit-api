@@ -1,16 +1,19 @@
 const express = require('express');
 const graphqlHttp = require('express-graphql');
 const { buildSchema } = require('graphql');
+const { fileLoader, mergeTypes, mergeResolvers } = require('merge-graphql-schemas');
 const bodyParser = require('body-parser');
+const path = require('path');
 
-const schema = require('./schema');
-const resolvers = require('./resolvers').resolvers;
 const auth = require('./middleware/auth');
 
 const sequelize = require('./util/db');
 const Game = require('./models/game');
 const User = require('./models/user');
 const GamePlayer = require('./models/game-player');
+
+const schema = mergeTypes(fileLoader(path.join(__dirname, './schema')));
+const resolvers = mergeResolvers(fileLoader(path.join(__dirname, './resolvers')));
 
 const app = express();
 
