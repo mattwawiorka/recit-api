@@ -18,18 +18,17 @@ const User = sequelize.define('user', {
   },
   password: {
     type: Sequelize.STRING,
+    allowNull: false
   },
   age: {
-    type: Sequelize.INTEGER,   
-    allowNull: false
+    type: Sequelize.INTEGER   
   },
   gender: {
-    type: Sequelize.STRING,   
-    allowNull: false
+    type: Sequelize.STRING
   },
   status : {
-      type: Sequelize.STRING,
-      defaultValue: "Let's Play!"
+    type: Sequelize.STRING,
+    defaultValue: "Let's Play!"
   }
 });
 

@@ -4,10 +4,15 @@ const typeDef = `
         id: ID!
         name: String!
         phoneNumber: String
-        password: String!
-        age: Int!
-        gender: String!
+        password: String
+        age: Int
+        gender: String
         status: String
+    }
+
+    type AuthData {
+        token: String!
+        userId: String!
     }
 
     input userInput {
@@ -21,7 +26,8 @@ const typeDef = `
 
     type Query {
         users: [User!]!
-        user(id: ID!): User! 
+        user(id: ID!): User!
+        login(name: String!, password: String!): AuthData 
     }
 
     type Mutation {

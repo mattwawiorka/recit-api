@@ -15,6 +15,11 @@ const typeDef = `
         host: User
     }
 
+    type Player {
+        id: ID!
+        name: String!
+    }
+
     input gameInput {
         title: String!
         dateTime: String!
@@ -29,6 +34,7 @@ const typeDef = `
     type Query {
         games: [Game!]!
         game(id: ID!): Game!
+        players(gameId: ID!): [User]
     }
 
     type Mutation {

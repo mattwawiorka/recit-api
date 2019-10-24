@@ -1,6 +1,7 @@
 const Game = require('../models/game');
 const User = require('../models/user');
 const GamePlayer = require('../models/game-player');
+const validator = require('validator');
 
 const resolvers = {
     games: () => {
@@ -200,6 +201,26 @@ const resolvers = {
             } else {
                 return false;
             }
+        })
+        .catch(err => {
+            console.log(err);
+        });
+    },
+    players: (args) => {
+        const playersList = [];
+        return GamePlayer.findAll({
+            where: {
+                gameId: args.gameId
+            }
+        })
+        .then( players => {
+            return players.map( p => {
+                return User.findOne({
+                    where: {
+                        id: p.dataValues.userId
+                    }
+                })
+            })
         })
         .catch(err => {
             console.log(err);

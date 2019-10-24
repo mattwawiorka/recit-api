@@ -1,4 +1,5 @@
 const User = require('../models/user');
+const jwt = require('jsonwebtoken');
 
 const resolvers = {
     users: () => {
@@ -17,6 +18,26 @@ const resolvers = {
         })
         .then( user => {
             return user;
+        }).catch(err => {
+            console.log(err);
+        });
+    },
+    login: (args) => {
+        return User.findOne({
+            where: {
+                name: args.name,
+                password: args.password
+            }
+        })
+        .then( user => {
+            const token = jwt.sign(
+                {
+                    userId: user.id.toString()
+                }, 
+                'secret', 
+                { expiresIn: '24h' }
+            );
+            return { token: token, userId: user.id.toString() };
         }).catch(err => {
             console.log(err);
         });
