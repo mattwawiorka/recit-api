@@ -1,11 +1,18 @@
+const Op = require('sequelize').Op;
 const Game = require('../models/game');
 const User = require('../models/user');
 const GamePlayer = require('../models/game-player');
 const validator = require('validator');
 
 const resolvers = {
-    games: () => {
-        return Game.findAll()
+    games: (args) => {
+        return Game.findAll({
+            where: {
+                endDateTime: {
+                    [Op.gt]: Date.now()
+                }
+            }
+        })
         .then( games => {
             return games;
         }).catch(err => {
@@ -29,6 +36,7 @@ const resolvers = {
         return Game.create({
             title: args.gameInput.title,
             dateTime: args.gameInput.dateTime,
+            endDateTime: args.gameInput.endDateTime,
             venue: args.gameInput.venue,
             address: args.gameInput.address,
             sport: args.gameInput.sport,
@@ -63,6 +71,7 @@ const resolvers = {
             return game.update({
                 title: args.gameInput.title,
                 dateTime: args.gameInput.dateTime,
+                endDateTime: args.gameInput.endDateTime,
                 venue: args.gameInput.venue,
                 address: args.gameInput.address,
                 sport: args.gameInput.sport,
@@ -80,7 +89,7 @@ const resolvers = {
     deleteGame: (args) => {
         return Game.destroy({
             where: {
-                id: args.id
+                id: args.gameId
             }
         })
         .then( rowsDeleted => {
@@ -197,7 +206,19 @@ const resolvers = {
         })
         .then( rowsDeleted => {
             if (rowsDeleted === 1) {
-                return true;
+                return GamePlayer.findAll({
+                    where: {
+                        gameId: args.gameId
+                    }
+                })
+                .then( players => {
+                    if (players.length === 0) {
+                        return resolvers.deleteGame(args);
+                    } else {
+                        // TODO: make next player host
+                        return true;
+                    }
+                })
             } else {
                 return false;
             }

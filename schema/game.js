@@ -4,6 +4,7 @@ const typeDef = `
         id: ID!
         title: String!
         dateTime: String!
+        endDateTime: String
         venue: String!
         address: String!
         sport: String!
@@ -23,6 +24,7 @@ const typeDef = `
     input gameInput {
         title: String!
         dateTime: String!
+        endDateTime: String!
         venue: String!
         address: String!
         sport: String!
@@ -32,7 +34,7 @@ const typeDef = `
     }
 
     type Query {
-        games: [Game!]!
+        games(userId: ID): [Game!]!
         game(id: ID!): Game!
         players(gameId: ID!): [User]
     }
@@ -43,7 +45,7 @@ const typeDef = `
         interestGame(gameId: ID!): Boolean
         leaveGame(gameId: ID!): Boolean
         updateGame(id: ID!, gameInput: gameInput): Game
-        deleteGame(id: ID!): Boolean
+        deleteGame(gameId: ID!): Boolean
     }
 `;
 

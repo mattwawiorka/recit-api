@@ -17,6 +17,10 @@ const Game = sequelize.define('game', {
     type: Sequelize.DATE,
     allowNull: false
   },
+  endDateTime: {
+    type: Sequelize.DATE,
+    allowNull: false
+  },
   venue: {
     type: Sequelize.STRING,
     allowNull: false

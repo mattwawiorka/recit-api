@@ -16,4 +16,12 @@ const GamePlayer = sequelize.define('gamePlayer', {
   }
 });
 
+/**
+ * Role:
+ *      1 - Host
+ *      2 - Joined
+ *      3 - Interested
+ *      4 - Invited
+ */
+
 module.exports = GamePlayer;

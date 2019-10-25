@@ -50,7 +50,9 @@ sequelize
   // .sync({ force: true })
   .sync()
   .then( () => {
-    app.listen(8080);
+    app.listen(8080, () => {
+      console.log('Server Running!') 
+    })
   })
   .catch(err => {
     console.log(err);
