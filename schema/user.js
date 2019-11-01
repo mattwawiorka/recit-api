@@ -27,13 +27,13 @@ const typeDef = `
     type Query {
         users: [User!]!
         user(id: ID!): User!
-        login(name: String!, password: String!): AuthData 
     }
 
     type Mutation {
         createUser(userInput: userInput): User!
         updateUser(id: ID!, userInput: userInput): User
         deleteUser(id: ID!): Boolean
+        login(name: String!, password: String!): AuthData 
     }
 `;
 

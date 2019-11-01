@@ -1,9 +1,12 @@
 const express = require('express');
-const graphqlHttp = require('express-graphql');
-const { buildSchema } = require('graphql');
+const { createServer } = require('http');
+const { execute, subscribe } = require('graphql');
 const { fileLoader, mergeTypes, mergeResolvers } = require('merge-graphql-schemas');
+const { SubscriptionServer } = require('subscriptions-transport-ws');
 const bodyParser = require('body-parser');
 const path = require('path');
+const { makeExecutableSchema } = require('graphql-tools');
+const { graphqlExpress, graphiqlExpress } = require('apollo-server-express')
 
 const auth = require('./middleware/auth');
 
@@ -12,12 +15,15 @@ const Game = require('./models/game');
 const User = require('./models/user');
 const GamePlayer = require('./models/game-player');
 
-const schema = mergeTypes(fileLoader(path.join(__dirname, './schema')));
+const typeDefs = mergeTypes(fileLoader(path.join(__dirname, './schema')));
 const resolvers = mergeResolvers(fileLoader(path.join(__dirname, './resolvers')));
 
-const app = express();
+const schema = makeExecutableSchema({
+  typeDefs,
+  resolvers
+});
 
-app.use(bodyParser.json());
+const app = express();
 
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -36,22 +42,48 @@ app.use(auth);
 
 app.use(
   '/graphql',
-  graphqlHttp({
-    schema: buildSchema(schema),
-    rootValue: resolvers,
-    graphiql: true
-  })
+  bodyParser.json(),
+  graphqlExpress(req => {
+    return {
+      schema: schema,
+      graphiql: true,
+      context: {
+        user: req.userId,
+        isAuth: req.isAuth
+      }
+    } 
+  }),
 );
+
+app.use(
+  '/graphiql',
+  graphiqlExpress({
+    endpointURL: '/graphql',
+    subscriptionsEndpoint: '/graphql/subscriptions'
+  })
+)
 
 Game.belongsToMany(User, { through: GamePlayer });
 User.belongsToMany(Game, { through: GamePlayer });
+
+const server = createServer(app);
 
 sequelize
   // .sync({ force: true })
   .sync()
   .then( () => {
-    app.listen(8080, () => {
-      console.log('Server Running!') 
+    server.listen(8080, () => {
+      new SubscriptionServer (
+        {
+          execute,
+          subscribe,
+          schema
+        },
+        {
+          server,
+          path: '/subscriptions'
+        }
+      );
     })
   })
   .catch(err => {

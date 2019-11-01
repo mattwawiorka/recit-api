@@ -10,14 +10,18 @@
   "author": "Matt Wawiorka",
   "license": "ISC",
   "dependencies": {
+    "apollo-server-express": "^1.4.0",
     "body-parser": "^1.19.0",
     "express": "^4.17.1",
     "express-graphql": "^0.9.0",
     "graphql": "^14.5.8",
+    "graphql-subscriptions": "^1.1.0",
+    "graphql-tools": "^4.0.6",
     "jsonwebtoken": "^8.5.1",
     "merge-graphql-schemas": "^1.7.0",
     "mysql2": "^1.7.0",
     "sequelize": "^5.19.6",
+    "subscriptions-transport-ws": "^0.9.16",
     "validator": "^11.1.0"
   },
   "devDependencies": {

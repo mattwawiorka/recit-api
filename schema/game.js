@@ -3,21 +3,21 @@ const typeDef = `
     type Game {
         id: ID!
         title: String!
-        dateTime: String!
+        dateTime: String
         endDateTime: String
-        venue: String!
-        address: String!
-        sport: String!
-        description: String!
+        venue: String
+        address: String
+        sport: String
+        description: String
         playersRsvp: [User]
         playersInterest: [User]
         image: String
-        public: Boolean!
+        public: Boolean
         host: User
     }
 
     type Player {
-        id: ID!
+        id: ID
         name: String!
     }
 
@@ -46,6 +46,11 @@ const typeDef = `
         leaveGame(gameId: ID!): Boolean
         updateGame(id: ID!, gameInput: gameInput): Game
         deleteGame(gameId: ID!): Boolean
+    }
+
+    type Subscription {
+        gameAdded: Game
+        gameDeleted: ID
     }
 `;
 
