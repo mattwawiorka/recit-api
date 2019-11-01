@@ -10,6 +10,7 @@
   "author": "Matt Wawiorka",
   "license": "ISC",
   "dependencies": {
+    "apollo-server": "^2.9.7",
     "apollo-server-express": "^1.4.0",
     "body-parser": "^1.19.0",
     "express": "^4.17.1",

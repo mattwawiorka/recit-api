@@ -1,4 +1,5 @@
 // Game CRUD
+
 const typeDef = `
     type Game {
         id: ID!
@@ -19,6 +20,7 @@ const typeDef = `
     type Player {
         id: ID
         name: String!
+        role: Int
     }
 
     input gameInput {
@@ -36,7 +38,7 @@ const typeDef = `
     type Query {
         games(userId: ID): [Game!]!
         game(id: ID!): Game!
-        players(gameId: ID!): [User]
+        players(gameId: ID!): [Player]
     }
 
     type Mutation {

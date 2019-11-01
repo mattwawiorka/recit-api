@@ -7,6 +7,7 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const { makeExecutableSchema } = require('graphql-tools');
 const { graphqlExpress, graphiqlExpress } = require('apollo-server-express')
+const { ApolloServer, gql } = require('apollo-server');
 
 const auth = require('./middleware/auth');
 
@@ -14,8 +15,9 @@ const sequelize = require('./util/db');
 const Game = require('./models/game');
 const User = require('./models/user');
 const GamePlayer = require('./models/game-player');
+const Comment = require('./models/comment');
 
-const typeDefs = mergeTypes(fileLoader(path.join(__dirname, './schema')));
+const typeDefs = gql(mergeTypes(fileLoader(path.join(__dirname, './schema'))));
 const resolvers = mergeResolvers(fileLoader(path.join(__dirname, './resolvers')));
 
 const schema = makeExecutableSchema({
@@ -65,6 +67,8 @@ app.use(
 
 Game.belongsToMany(User, { through: GamePlayer });
 User.belongsToMany(Game, { through: GamePlayer });
+Comment.belongsTo(User);
+Comment.belongsTo(Game);
 
 const server = createServer(app);
 

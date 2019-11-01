@@ -56,12 +56,20 @@ const resolvers = {
                     gameId: args.gameId
                 }
             })
-            .then( players => {
-                return players.map( p => {
+            .then( gamePlayers => {
+                return gamePlayers.map( p => {
                     return User.findOne({
                         where: {
                             id: p.dataValues.userId
                         }
+                    })
+                    .then( user => {
+                        let player = {
+                            id: p.id,
+                            name: user.name,
+                            role: p.role
+                        };
+                        return player;
                     })
                 })
             })
@@ -245,31 +253,53 @@ const resolvers = {
                 }
             })
             .then( user => {
-                return GamePlayer.destroy( {
+                return GamePlayer.findOne({
                     where: {
-                        gameId: args.gameId,
-                        userId: user.id
+                        userId: user.id,
+                        gameId: args.gameId
                     }
                 })
             })
-            .then( rowsDeleted => {
-                if (rowsDeleted === 1) {
-                    return GamePlayer.findAll({
-                        where: {
-                            gameId: args.gameId
-                        }
-                    })
-                    .then( players => {
-                        if (players.length === 0) {
-                            return resolvers.Mutation.deleteGame(parent, args);
-                        } else {
-                            // TODO: make next player host
-                            return true;
-                        }
-                    })
-                } else {
-                    return false;
-                }
+            .then( gamePlayer => {
+                const isHost = (gamePlayer.role === 1) ? true : false;
+                return GamePlayer.destroy( {
+                    where: {
+                        gameId: gamePlayer.gameId,
+                        userId: gamePlayer.userId
+                    }
+                })
+                .then( rowsDeleted => {
+                    if (rowsDeleted === 1) {
+                        return GamePlayer.findAll({
+                            where: {
+                                gameId: args.gameId
+                            }
+                        })
+                        .then( players => {
+                            if (players.length === 0) {
+                                return resolvers.Mutation.deleteGame(parent, args);
+                            } 
+                            if (isHost) {
+                                // TODO: Ask if host really wants to leave game
+                                return GamePlayer.update(
+                                    {role: 1},
+                                    {where: {
+                                        gameId: args.gameId,
+                                        userId: players[0].dataValues.userId
+                                    }}
+                                )
+                                .then( result => {
+                                    return true;
+                                })
+    
+                            } else {
+                                return true;
+                            }
+                        })
+                    } else {
+                        return false;
+                    }
+                })
             })
             .catch(err => {
                 console.log(err);
