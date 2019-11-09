@@ -34,8 +34,8 @@ const resolvers = {
             })
             .then( games => {
                 return games;
-            }).catch(err => {
-                console.log(err);
+            }).catch(error => {
+                throw error;
             });
         },
         game: (parent, args) => {
@@ -46,8 +46,8 @@ const resolvers = {
             })
             .then( game => {
                 return game;
-            }).catch(err => {
-                console.log(err);
+            }).catch(error => {
+                throw error;
             });
         },
         players: (parent, args) => {
@@ -65,7 +65,7 @@ const resolvers = {
                     })
                     .then( user => {
                         let player = {
-                            id: p.id,
+                            id: user.dataValues.id,
                             name: user.name,
                             role: p.role
                         };
@@ -73,35 +73,83 @@ const resolvers = {
                     })
                 })
             })
-            .catch(err => {
-                console.log(err);
+            .catch(error => {
+                throw error;
             });
         },
     },
     Mutation: {
         createGame: (parent, args, context) => {
-            return Game.create({
-                title: args.gameInput.title,
-                dateTime: args.gameInput.dateTime,
-                endDateTime: args.gameInput.endDateTime,
-                venue: args.gameInput.venue,
-                address: args.gameInput.address,
-                sport: args.gameInput.sport,
-                description: args.gameInput.description,
-                public: args.gameInput.public
+            let { title, dateTime, endDateTime, venue, address, sport, description, public } = args.gameInput;
+            const errors = [];
+            
+            const d = new Date(dateTime);
+            
+            const yesterday = new Date();
+            
+            yesterday.setDate(yesterday.getDate()-1);
+            
+            // Default public game
+            if (!public) {
+                public = true;
+                console.log(public)
+            }
+
+            return User.findOne({
+                where: {
+                    id: context.user
+                }
             })
-            .then( game => {
-                return User.findOne({
-                    where: {
-                        id: context.user
-                    }
+            .then ( user => {
+                if (!user) {
+                    errors.push({ message: 'Must be logged in to create game' });
+                }
+                if (!title || !dateTime || !venue || !address || !sport || !description) {
+                    console.log('1')
+                    errors.push({ message: 'Please fill in all required fields' });
+                }
+                else if (!validator.isLength(description, {min:undefined, max: 1000})) {
+                    console.log('2')
+                    errors.push({ message: 'Description must be less than 1000 characters' });
+                }
+                else if (!validator.isAfter(d.toDateString(), yesterday.toDateString())) {
+                    console.log('start date not after today')
+                    errors.push({ message: 'Start date cannot be in the past' });
+                }
+                else if (!(d.toTimeString() > yesterday.toTimeString())) {
+                    console.log('start time must be in the future')
+                    errors.push({ message: 'Start time must be in the future' });
+                }
+                else if (!endDateTime) {
+                    endDateTime = d.setTime(d.getTime() + (2*60*60*1000));
+                }
+                console.log('past validators')
+                if (errors.length > 0) {
+                    console.log('past validators')
+                    const error = new Error('Could not create game');
+                    error.data = errors;
+                    error.code = 401;   
+                    throw error;
+                }
+
+                console.log('no errors')
+
+                return Game.create({
+                    title: title,
+                    dateTime: dateTime,
+                    endDateTime: endDateTime,
+                    venue: venue,
+                    address: address,
+                    sport: sport,
+                    description: description,
+                    public: public
                 })
-                .then( user => {
+                .then( game => {
                     return GamePlayer.create({
-                        role: 1,
-                        gameId: game.id,
-                        userId: user.id
-                    })
+                            role: 1,
+                            gameId: game.id,
+                            userId: user.id
+                        })
                     .then( gamePlayer => {
                         pubsub.publish(GAME_ADDED, {
                             gameAdded: game.dataValues
@@ -110,8 +158,8 @@ const resolvers = {
                     })
                 })
             })
-            .catch(err => {
-                console.log(err);
+            .catch(error => {
+                throw error;
             });
         },
         updateGame: (parent, args) => {

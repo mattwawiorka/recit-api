@@ -8,6 +8,7 @@ const path = require('path');
 const { makeExecutableSchema } = require('graphql-tools');
 const { graphqlExpress, graphiqlExpress } = require('apollo-server-express')
 const { ApolloServer, gql } = require('apollo-server');
+const graphqlHTTP = require('express-graphql');
 
 const auth = require('./middleware/auth');
 
@@ -42,28 +43,62 @@ app.use((req, res, next) => {
 
 app.use(auth);
 
+// app.use((req, res, next) => {
+//   console.log('why dont we reach here')
+//   console.log('res', res)
+//   const status = error.statusCode || 500;
+//   const message = error.message;
+//   const data = error.data;
+//   res.status(status).json({ message: message, data: data });
+// });
+
+// app.use(
+//   '/graphql',
+//   bodyParser.json(),
+//   graphqlExpress(req => {
+//     return {
+//       schema: schema,
+//       graphiql: true,
+//       context: {
+//         user: req.userId,
+//         isAuth: req.isAuth
+//       },
+//       customFormatErrorFn: error => ({
+//         message: error.message || 'An error occurred.',
+//         code: error.originalError.code || 500,
+//         data: error.originalError.data
+//       })
+//     } 
+//   }),
+// );
+
 app.use(
   '/graphql',
   bodyParser.json(),
-  graphqlExpress(req => {
+  graphqlHTTP(req => {
     return {
       schema: schema,
       graphiql: true,
       context: {
         user: req.userId,
         isAuth: req.isAuth
-      }
+      },
+      customFormatErrorFn: error => ({
+        message: error.message || 'An error occurred.',
+        code: error.originalError.code || 500,
+        data: error.originalError.data
+      })
     } 
   }),
 );
 
-app.use(
-  '/graphiql',
-  graphiqlExpress({
-    endpointURL: '/graphql',
-    subscriptionsEndpoint: '/graphql/subscriptions'
-  })
-)
+// app.use(
+//   '/graphiql',
+//   graphiqlExpress({
+//     endpointURL: '/graphql',
+//     subscriptionsEndpoint: '/graphql/subscriptions'
+//   })
+// )
 
 Game.belongsToMany(User, { through: GamePlayer });
 User.belongsToMany(Game, { through: GamePlayer });
@@ -77,6 +112,7 @@ sequelize
   .sync()
   .then( () => {
     server.listen(8080, () => {
+      console.log('Server online!')
       new SubscriptionServer (
         {
           execute,

@@ -24,15 +24,15 @@ const typeDef = `
     }
 
     input gameInput {
-        title: String!
-        dateTime: String!
-        endDateTime: String!
-        venue: String!
-        address: String!
-        sport: String!
-        description: String!
+        title: String
+        dateTime: String
+        endDateTime: String
+        venue: String
+        address: String
+        sport: String
+        description: String
         image: String
-        public: Boolean!
+        public: Boolean
     }
 
     type Query {

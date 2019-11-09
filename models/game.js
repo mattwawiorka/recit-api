@@ -30,11 +30,11 @@ const Game = sequelize.define('game', {
     allowNull: false
   },
   sport : {
-    type: Sequelize.STRING,
+    type: Sequelize.STRING(50),
     allowNull: false
   },
   description: {
-    type: Sequelize.STRING
+    type: Sequelize.STRING(1000)
   },
   image : {
     type: Sequelize.STRING

@@ -16,12 +16,11 @@ const typeDef = `
     }
 
     input userInput {
-        name: String!
+        name: String
         phoneNumber: String
-        password: String!
-        age: Int!
-        gender: String!
-        status: String
+        password: String
+        age: Int
+        gender: String
     }
 
     type Query {
@@ -30,7 +29,7 @@ const typeDef = `
     }
 
     type Mutation {
-        createUser(userInput: userInput): User!
+        createUser(userInput: userInput): User
         updateUser(id: ID!, userInput: userInput): User
         deleteUser(id: ID!): Boolean
         login(name: String!, password: String!): AuthData 
