@@ -84,8 +84,10 @@ const resolvers = {
             const errors = [];
             
             const d = new Date(dateTime);
-            
+            const now = new Date();
             const yesterday = new Date();
+
+            console.log('value', parseInt(d.valueOf()))
             
             yesterday.setDate(yesterday.getDate()-1);
             
@@ -112,13 +114,9 @@ const resolvers = {
                     console.log('2')
                     errors.push({ message: 'Description must be less than 1000 characters' });
                 }
-                else if (!validator.isAfter(d.toDateString(), yesterday.toDateString())) {
-                    console.log('start date not after today')
-                    errors.push({ message: 'Start date cannot be in the past' });
-                }
-                else if (!(d.toTimeString() > yesterday.toTimeString())) {
+                else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
                     console.log('start time must be in the future')
-                    errors.push({ message: 'Start time must be in the future' });
+                    errors.push({ message: 'Start date cannot be in the past' });
                 }
                 else if (!endDateTime) {
                     endDateTime = d.setTime(d.getTime() + (2*60*60*1000));

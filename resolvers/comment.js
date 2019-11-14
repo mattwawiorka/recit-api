@@ -67,7 +67,8 @@ const resolvers = {
                         commentAdded: {
                             id: comment.id,
                             userName: user.name,
-                            content: comment.content
+                            content: comment.content,
+                            dateTime: comment.dataValues.updatedAt
                         }
                     })
                     return comment.id;
