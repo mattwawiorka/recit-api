@@ -29,11 +29,13 @@ const resolvers = {
         createUser: (parent, args) => {
             const { name, phoneNumber, password, age, gender } = args.userInput;
             const errors = [];
+            const namePattern = /^[a-z0-9\s]+$/i;
+
             if (!name || !password || !phoneNumber || !age || !gender) {
                 console.log('1')
                 errors.push({ message: 'Please fill in all required fields' });
             }
-            else if (validator.matches(name, '^[a-zA-Z0-9\s]*$')) {
+            else if (!namePattern.test(name)) {
                 console.log('2')
                 errors.push({ message: 'Username an only contain letters and numbers' });
             }

@@ -106,7 +106,7 @@ const resolvers = {
                 if (!user) {
                     errors.push({ message: 'Must be logged in to create game' });
                 }
-                if (!title || !dateTime || !venue || !address || !sport || !description) {
+                if (!title || !dateTime || !venue || !address || !sport || !description || !players) {
                     console.log('1')
                     errors.push({ message: 'Please fill in all required fields' });
                 }
