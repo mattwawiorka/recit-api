@@ -33,9 +33,9 @@ const resolvers = {
                 console.log('1')
                 errors.push({ message: 'Please fill in all required fields' });
             }
-            else if (!validator.isAlphanumeric(name)) {
+            else if (validator.matches(name, '^[a-zA-Z0-9\s]*$')) {
                 console.log('2')
-                errors.push({ message: 'Username can only contain letters and numbers' });
+                errors.push({ message: 'Username an only contain letters and numbers' });
             }
             else if (!validator.isLength(password, {min:6, max: undefined})) {
                 console.log('3')

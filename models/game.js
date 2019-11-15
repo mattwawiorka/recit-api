@@ -29,9 +29,14 @@ const Game = sequelize.define('game', {
     type: Sequelize.STRING,
     allowNull: false
   },
-  sport : {
+  sport: {
     type: Sequelize.STRING(50),
     allowNull: false
+  },
+  players: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+    defaultValue: 1
   },
   description: {
     type: Sequelize.STRING(1000)

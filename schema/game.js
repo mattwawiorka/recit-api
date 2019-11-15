@@ -9,6 +9,7 @@ const typeDef = `
         venue: String
         address: String
         sport: String
+        players: Int
         description: String
         playersRsvp: [User]
         playersInterest: [User]
@@ -30,6 +31,7 @@ const typeDef = `
         venue: String
         address: String
         sport: String
+        players: Int
         description: String
         image: String
         public: Boolean

@@ -80,7 +80,7 @@ const resolvers = {
     },
     Mutation: {
         createGame: (parent, args, context) => {
-            let { title, dateTime, endDateTime, venue, address, sport, description, public } = args.gameInput;
+            let { title, dateTime, endDateTime, venue, address, sport, players, description, public } = args.gameInput;
             const errors = [];
             
             const d = new Date(dateTime);
@@ -109,6 +109,9 @@ const resolvers = {
                 if (!title || !dateTime || !venue || !address || !sport || !description) {
                     console.log('1')
                     errors.push({ message: 'Please fill in all required fields' });
+                }
+                else if ((players < 1) || (players > 32)) {
+                    errors.push({ message: 'Description must be less than 1000 characters' });
                 }
                 else if (!validator.isLength(description, {min:undefined, max: 1000})) {
                     console.log('2')
@@ -139,6 +142,7 @@ const resolvers = {
                     venue: venue,
                     address: address,
                     sport: sport,
+                    players: players,
                     description: description,
                     public: public
                 })
