@@ -19,7 +19,7 @@ const resolvers = {
                 }
             })
             .then( user => {
-                return user;
+                return user.dataValues;
             }).catch(error => {
                 throw error;
             });
@@ -81,11 +81,11 @@ const resolvers = {
             })
             .then( user => {
                 return user.update({
-                    name: args.userInput.name,
-                    password: args.userInput.password,
-                    age: args.userInput.age,
-                    gender: args.userInput.gender,
-                    status: args.userInput.status
+                    name: args.userInput.name || user.name,
+                    password: args.userInput.password || user.password,
+                    age: args.userInput.age || user.age,
+                    gender: args.userInput.gender || user.gender,
+                    status: args.userInput.status || user.status
                 })
             })
             .then( result => {

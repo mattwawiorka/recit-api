@@ -8,6 +8,7 @@ const typeDef = `
         age: Int
         gender: String
         status: String
+        createdAt: String
     }
 
     type AuthData {
@@ -21,6 +22,7 @@ const typeDef = `
         password: String
         age: Int
         gender: String
+        status: String
     }
 
     type Query {
@@ -32,7 +34,7 @@ const typeDef = `
         createUser(userInput: userInput): User
         updateUser(id: ID!, userInput: userInput): User
         deleteUser(id: ID!): Boolean
-        login(name: String!, password: String!): AuthData 
+        login(name: String!, password: String!): AuthData
     }
 `;
 
