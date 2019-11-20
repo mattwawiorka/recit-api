@@ -1,4 +1,5 @@
 // User CRUD
+
 const typeDef = `
     type User {
         id: ID!

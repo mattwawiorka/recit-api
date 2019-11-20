@@ -1,8 +1,5 @@
 const Comment = require('../models/comment');
-const Op = require('sequelize').Op;
-const Game = require('../models/game');
 const User = require('../models/user');
-const GamePlayer = require('../models/game-player');
 const { PubSub } = require('graphql-subscriptions');
 
 const pubsub = new PubSub();
@@ -49,8 +46,6 @@ const resolvers = {
     },
     Mutation: {
         createComment: (parent, args, context) => {
-            console.log('creating comment')
-            console.log(args)
             return User.findOne({
                 where: {
                     id: context.user

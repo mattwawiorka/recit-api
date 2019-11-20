@@ -32,27 +32,21 @@ const resolvers = {
             const namePattern = /^[a-z0-9\s]+$/i;
 
             if (!name || !password || !phoneNumber || !age || !gender) {
-                console.log('1')
                 errors.push({ message: 'Please fill in all required fields' });
             }
             else if (!namePattern.test(name)) {
-                console.log('2')
                 errors.push({ message: 'Username an only contain letters and numbers' });
             }
             else if (!validator.isLength(password, {min:6, max: undefined})) {
-                console.log('3')
                 errors.push({ message: 'Password must be at least 6 characters' });
             }
             else if ((age < 1) || (age > 120)) {
-                console.log('4')
                 errors.push({ message: 'Please let other players know your age' });
             }
             else if (validator.isEmpty(gender)) {
-                console.log('5')
                 errors.push({ message: 'Please let other players know your preferred gender' });
             }
             if (errors.length > 0) {
-                console.log('past validators')
                 const error = new Error('Invalid input');
                 error.data = errors;
                 error.code = 401;   

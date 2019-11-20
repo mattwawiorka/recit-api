@@ -25,6 +25,7 @@ const resolvers = {
     },
     Query: {
         games: (parent, args, context) => {
+            // Find all games not in the past
             return Game.findAll({
                 where: {
                     endDateTime: {
@@ -85,16 +86,10 @@ const resolvers = {
             
             const d = new Date(dateTime);
             const now = new Date();
-            const yesterday = new Date();
-
-            console.log('value', parseInt(d.valueOf()))
-            
-            yesterday.setDate(yesterday.getDate()-1);
             
             // Default public game
             if (!public) {
                 public = true;
-                console.log(public)
             }
 
             return User.findOne({
@@ -107,18 +102,15 @@ const resolvers = {
                     errors.push({ message: 'Must be logged in to create game' });
                 }
                 if (!title || !dateTime || !venue || !address || !sport || !description || !players) {
-                    console.log('1')
                     errors.push({ message: 'Please fill in all required fields' });
                 }
                 else if ((players < 1) || (players > 32)) {
                     errors.push({ message: 'Description must be less than 1000 characters' });
                 }
                 else if (!validator.isLength(description, {min:undefined, max: 1000})) {
-                    console.log('2')
                     errors.push({ message: 'Description must be less than 1000 characters' });
                 }
                 else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
-                    console.log('start time must be in the future')
                     errors.push({ message: 'Start date cannot be in the past' });
                 }
                 else if (!endDateTime) {
@@ -126,14 +118,11 @@ const resolvers = {
                 }
                 console.log('past validators')
                 if (errors.length > 0) {
-                    console.log('past validators')
                     const error = new Error('Could not create game');
                     error.data = errors;
                     error.code = 401;   
                     throw error;
                 }
-
-                console.log('no errors')
 
                 return Game.create({
                     title: title,
@@ -216,7 +205,6 @@ const resolvers = {
             })
             .then( user => {
                 if (!user) {
-                    console.log("No user");
                     return false;
                 }
                 return GamePlayer.findOrCreate({
@@ -279,7 +267,7 @@ const resolvers = {
                         return true;
                     }
                     else if (!created & player.role === 2) {
-                        console.log("Joined now just interested");
+                        // Joined now just interested
                         return player.update({
                             role: 3
                         })
