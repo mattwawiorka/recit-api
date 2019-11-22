@@ -10,6 +10,8 @@ const pubsub = new PubSub();
 const GAME_ADDED = 'GAME_ADDED';
 const GAME_DELETED = 'GAME_DELETED';
 
+GAMES_PER_PAGE = 15;
+
 const resolvers = {
     Subscription: {
         gameAdded: {
@@ -25,8 +27,14 @@ const resolvers = {
     },
     Query: {
         games: (parent, args, context) => {
+            console.log(args)
+            if (!args.page) {
+                args.page = 1;
+            }
             // Find all games not in the past
             return Game.findAll({
+                // limit: GAMES_PER_PAGE,
+                // offset: (args.page - 1) * GAMES_PER_PAGE,
                 where: {
                     endDateTime: {
                         [Op.gt]: Date.now()
@@ -78,34 +86,55 @@ const resolvers = {
                 throw error;
             });
         },
+        host: (parent, args) => {
+            return GamePlayer.findOne({
+                where: {
+                    gameId: args.gameId,
+                    role: 1
+                }
+            })
+            .then(host => {
+                return host.dataValues.userId
+            })
+            .catch(error => {
+                throw error;
+            })
+        }
     },
     Mutation: {
         createGame: (parent, args, context) => {
             let { title, dateTime, endDateTime, venue, address, sport, players, description, public } = args.gameInput;
             const errors = [];
-            
-            const d = new Date(dateTime);
+
             const now = new Date();
-            
+            const d = new Date(dateTime);
+            if (!endDateTime) {
+                const d2 = new Date(dateTime);
+                endDateTime = d2.setTime(d2.getTime() + (2*60*60*1000));
+            }
+            const endD = new Date(endDateTime);
+
+            console.log(endD)
+
             // Default public game
             if (!public) {
                 public = true;
             }
 
-            return User.findOne({
-                where: {
-                    id: context.user
-                }
-            })
-            .then ( user => {
-                if (!user) {
+            // return User.findOne({
+            //     where: {
+            //         id: context.user
+            //     }
+            // })
+            // .then ( user => {
+                if (!context.isAuth) {
                     errors.push({ message: 'Must be logged in to create game' });
                 }
                 if (!title || !dateTime || !venue || !address || !sport || !description || !players) {
                     errors.push({ message: 'Please fill in all required fields' });
                 }
                 else if ((players < 1) || (players > 32)) {
-                    errors.push({ message: 'Description must be less than 1000 characters' });
+                    errors.push({ message: 'Number of players must be between 1-32' });
                 }
                 else if (!validator.isLength(description, {min:undefined, max: 1000})) {
                     errors.push({ message: 'Description must be less than 1000 characters' });
@@ -113,8 +142,8 @@ const resolvers = {
                 else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
                     errors.push({ message: 'Start date cannot be in the past' });
                 }
-                else if (!endDateTime) {
-                    endDateTime = d.setTime(d.getTime() + (2*60*60*1000));
+                else if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
+                    errors.push({ message: 'End date cannot be before starting date' });
                 }
                 console.log('past validators')
                 if (errors.length > 0) {
@@ -139,7 +168,7 @@ const resolvers = {
                     return GamePlayer.create({
                             role: 1,
                             gameId: game.id,
-                            userId: user.id
+                            userId: context.user
                         })
                     .then( gamePlayer => {
                         pubsub.publish(GAME_ADDED, {
@@ -148,35 +177,76 @@ const resolvers = {
                         return game;
                     })
                 })
-            })
+            // })
             .catch(error => {
                 throw error;
             });
         },
-        updateGame: (parent, args) => {
-            return Game.findOne({
+        updateGame: (parent, args, context) => {
+            let { title, dateTime, endDateTime, venue, address, sport, players, description, public } = args.gameInput;
+            const errors = [];
+
+            const now = new Date();
+            const d = new Date(dateTime);
+            const endD = new Date(endDateTime);
+
+            return User.findOne({
                 where: {
-                    id: args.id
+                    id: context.user
                 }
             })
-            .then( game => {
-                return game.update({
-                    title: args.gameInput.title,
-                    dateTime: args.gameInput.dateTime,
-                    endDateTime: args.gameInput.endDateTime,
-                    venue: args.gameInput.venue,
-                    address: args.gameInput.address,
-                    sport: args.gameInput.sport,
-                    description: args.gameInput.description,
-                    public: args.gameInput.public
+            .then ( user => {
+                if (!user) {
+                    errors.push({ message: 'Must be logged in to create game' });
+                }
+                if (!title || !dateTime || !venue || !address || !sport || !description || !players) {
+                    errors.push({ message: 'Please fill in all required fields' });
+                }
+                else if ((players < 1) || (players > 32)) {
+                    errors.push({ message: 'Number of players must be between 1-32' });
+                }
+                else if (!validator.isLength(description, {min:undefined, max: 1000})) {
+                    errors.push({ message: 'Description must be less than 1000 characters' });
+                }
+                else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
+                    errors.push({ message: 'Start date cannot be in the past' });
+                }
+                else if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
+                    errors.push({ message: 'End date cannot be before starting date' });
+                }
+
+                if (errors.length > 0) {
+                    const error = new Error('Could not update game');
+                    error.data = errors;
+                    error.code = 401;   
+                    throw error;
+                }
+
+                return Game.findOne({
+                    where: {
+                        id: args.id
+                    }
+                }) 
+                .then( game => {
+                    return game.update({
+                        title: title || game.title,
+                        dateTime: dateTime || game.dateTime,
+                        endDateTime: endDateTime || game.endDateTime,
+                        venue: venue || game.venue,
+                        address: address || game.address,
+                        sport: sport || game.sport,
+                        players: players || game.players,
+                        description: description || game.description,
+                        public: public || game.public
+                    }) 
+                    .then( result => {
+                        return result;
+                    })
                 })
             })
-            .then( result => {
-                return result
-            })
-            .catch(err => {
-                console.log(err);
-            });
+            .catch(error => {
+                throw error;
+            });          
         },
         deleteGame: (parent, args) => {
             return Game.destroy({
@@ -193,8 +263,8 @@ const resolvers = {
                 }
                 return false;
             })
-            .catch(err => {
-                console.log(err);
+            .catch(error => {
+                console.log(error);
             });
         },
         joinGame: (parent, args, context) => {
@@ -236,8 +306,8 @@ const resolvers = {
                     }
                 })
             })
-            .catch(err => {
-                console.log(err);
+            .catch(error => {
+                console.log(error);
             });
         },
         interestGame: (parent, args, context, req) => {
@@ -280,8 +350,8 @@ const resolvers = {
                     }
                 })
             })
-            .catch(err => {
-                console.log(err);
+            .catch(error => {
+                console.log(error);
             });
         },
         leaveGame: (parent, args, context, req) => {
@@ -339,8 +409,8 @@ const resolvers = {
                     }
                 })
             })
-            .catch(err => {
-                console.log(err);
+            .catch(error => {
+                console.log(error);
             });
         }
     }

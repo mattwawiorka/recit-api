@@ -64,10 +64,10 @@ app.use(
 );
 
 
-Game.belongsToMany(User, { through: GamePlayer });
 User.belongsToMany(Game, { through: GamePlayer });
-Comment.belongsTo(User);
-Comment.belongsTo(Game);
+Game.belongsToMany(User, { constraints: true, through: GamePlayer , onDelete: 'CASCADE' });
+Comment.belongsTo(User, { constraints: true, onDelete: 'CASCADE' });
+Comment.belongsTo(Game, { constraints: true, onDelete: 'CASCADE' });
 
 const server = createServer(app);
 

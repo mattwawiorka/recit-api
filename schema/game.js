@@ -38,9 +38,10 @@ const typeDef = `
     }
 
     type Query {
-        games(userId: ID): [Game!]!
+        games(page: Int, userId: ID): [Game!]!
         game(id: ID!): Game!
         players(gameId: ID!): [Player]
+        host(gameId: ID!): ID
     }
 
     type Mutation {

@@ -20,9 +20,9 @@ const typeDef = `
     }
 
     type Mutation {
-        createComment(commentInput: commentInput): ID
-        updateComment(id: ID!, commentInput: commentInput): Boolean
-        deleteComment(id: ID!): Boolean
+        createComment(commentInput: commentInput): Comment
+        updateComment(id: ID!, content: String!): Comment
+        deleteComment(id: ID): Comment
     }
 
     type Subscription {

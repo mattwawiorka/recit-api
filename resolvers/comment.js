@@ -39,8 +39,8 @@ const resolvers = {
                         return comment;
                     })
                 });
-            }).catch(err => {
-                console.log(err);
+            }).catch(error => {
+                console.log(error);
             });
         }
     },
@@ -66,10 +66,65 @@ const resolvers = {
                             dateTime: comment.dataValues.updatedAt
                         }
                     })
-                    return comment.id;
+                    return comment;
                 })
-            }).catch(err => {
-                console.log(err)
+            }).catch(error => {
+                console.log(error);
+            })
+        },
+        updateComment: (parent, args, context) => {
+            return User.findOne({
+                where: {
+                    id: context.user
+                }
+            })
+            .then( user => {
+                return Comment.findOne({
+                    where: {
+                        id: args.id
+                    }
+                })
+                .then( comment => {
+                    return comment.update({
+                        content: args.content || comment.content
+                    })
+                    .then(result => {
+                        return comment.dataValues;
+                    })
+                })
+            })
+            .catch(error => {
+                console.log(error);
+            });
+        },
+        deleteComment: (parent, args, context) => {
+            return User.findOne({
+                where: {
+                    id: context.user
+                }
+            })
+            .then( user => {
+                return Comment.findOne({
+                    where: {
+                        id: args.id
+                    }
+                })
+                .then( comment => {
+                    return Comment.destroy({
+                        where: {
+                            id: comment.id
+                        }
+                    })
+                    .then( rowsDeleted => {
+                        if (rowsDeleted === 1) {
+                            return comment.dataValues;
+                        }
+                        return comment.dataValues;
+                    })
+                })
+            })
+            .catch(error => {
+                console.log(error);
             })
         }
     }
