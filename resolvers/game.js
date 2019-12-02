@@ -27,22 +27,47 @@ const resolvers = {
     },
     Query: {
         games: (parent, args, context) => {
-            console.log(args)
-            if (!args.page) {
-                args.page = 1;
+            if (!args.cursor) {
+                args.cursor = Date.now();
+            } else {
+                args.cursor = new Date(parseInt(args.cursor)) 
             }
+
             // Find all games not in the past
-            return Game.findAll({
-                // limit: GAMES_PER_PAGE,
-                // offset: (args.page - 1) * GAMES_PER_PAGE,
+            return Game.findAndCountAll({
                 where: {
-                    endDateTime: {
-                        [Op.gt]: Date.now()
+                    dateTime: {
+                        [Op.gt]: args.cursor
                     }
-                }
+                },
+                //offset: (args.page - 1) * GAMES_PER_PAGE,
+                limit: GAMES_PER_PAGE, 
+                order: [
+                    ['dateTime', 'ASC']
+                ]
             })
-            .then( games => {
-                return games;
+            .then( result => {
+                let edges = [], endCursor;
+                result.rows.map((game, index) => {
+                    edges.push({
+                        cursor: game.dataValues.dateTime,
+                        distance: 1,
+                        node: game.dataValues
+                    });
+
+                    if (index === result.rows.length - 1) {
+                        endCursor = game.dataValues.dateTime;
+                    }
+                })
+                return {
+                    totalCount: result.count,
+                    edges: edges,
+                    pageInfo: {
+                        endCursor: endCursor,
+                        hasNextPage: result.rows.length === GAMES_PER_PAGE
+                    }
+
+                }
             }).catch(error => {
                 throw error;
             });
@@ -172,7 +197,11 @@ const resolvers = {
                         })
                     .then( gamePlayer => {
                         pubsub.publish(GAME_ADDED, {
-                            gameAdded: game.dataValues
+                            gameAdded: {
+                                cursor: game.dataValues.dateTime,
+                                distance: 1,
+                                node: game.dataValues
+                            }
                         })
                         return game;
                     })

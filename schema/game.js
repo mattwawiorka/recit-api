@@ -15,7 +15,23 @@ const typeDef = `
         playersInterest: [User]
         image: String
         public: Boolean
-        host: User
+    }
+
+    type Edge {
+        cursor: String
+        distance: Int
+        node: Game
+    }
+    
+    type PageInfo {
+        endCursor: String
+        hasNextPage: Boolean
+    }
+
+    type GameFeed {
+        totalCount: Int
+        edges: [Edge]
+        pageInfo: PageInfo
     }
 
     type Player {
@@ -38,7 +54,7 @@ const typeDef = `
     }
 
     type Query {
-        games(page: Int, userId: ID): [Game!]!
+        games(cursor: String, userId: ID): GameFeed
         game(id: ID!): Game!
         players(gameId: ID!): [Player]
         host(gameId: ID!): ID
@@ -54,7 +70,7 @@ const typeDef = `
     }
 
     type Subscription {
-        gameAdded: Game
+        gameAdded: Edge
         gameDeleted: ID
     }
 `;

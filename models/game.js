@@ -48,6 +48,12 @@ const Game = sequelize.define('game', {
     type: Sequelize.BOOLEAN,
     allowNull: false
   }
+}, {
+  indexes: [
+    {
+      fields: ['dateTime']
+    }
+  ]
 });
 
 module.exports = Game;
