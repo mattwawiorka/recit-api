@@ -4,6 +4,7 @@ const User = require('../models/user');
 const GamePlayer = require('../models/game-player');
 const validator = require('validator');
 const { PubSub } = require('graphql-subscriptions');
+const dateTool = require('../util/dateTool');
 
 const pubsub = new PubSub();
 
@@ -27,25 +28,63 @@ const resolvers = {
     },
     Query: {
         games: (parent, args, context) => {
+            console.log(args)
             if (!args.cursor) {
                 args.cursor = Date.now();
             } else {
                 args.cursor = new Date(parseInt(args.cursor)) 
             }
 
-            // Find all games not in the past
-            return Game.findAndCountAll({
+            let options = {
                 where: {
                     dateTime: {
                         [Op.gt]: args.cursor
-                    }
+                    }, 
                 },
-                //offset: (args.page - 1) * GAMES_PER_PAGE,
                 limit: GAMES_PER_PAGE, 
                 order: [
                     ['dateTime', 'ASC']
                 ]
-            })
+            };
+
+            if (args.sport !== "ALL") {
+                options.where.sport = args.sport 
+            }
+
+            if (args.startDate !== "ALL") {
+                if (args.startDate === "TODAY") {
+                    options.where.dateTime = {
+                        [Op.gt]: args.cursor,
+                        [Op.lt]: dateTool.getTomorrow().valueOf()
+                    }
+                }
+                else if (args.startDate === "TOMORROW") {
+                    options.where.dateTime = {
+                        [Op.gt]: dateTool.getTomorrow().valueOf(),
+                        [Op.lt]: dateTool.getDayAfterTomorrow().valueOf()
+                    }
+                }
+                else if (args.startDate === "LATERTHISWEEK") {
+                    options.where.dateTime = {
+                        [Op.gt]: dateTool.getDayAfterTomorrow().valueOf(),
+                        [Op.lt]: dateTool.getEndOfWeek().valueOf()
+                    }
+                }
+                else if (args.startDate === "NEXTWEEK") {
+                    options.where.dateTime = {
+                        [Op.gt]: dateTool.getEndOfWeek().valueOf(),
+                        [Op.lt]: dateTool.getEndOfNextWeek().valueOf()
+                    }
+                }
+                else if (args.startDate === "LATER") {
+                    options.where.dateTime = {
+                        [Op.gt]: dateTool.getEndOfNextWeek().valueOf()
+                    }
+                }
+            }
+
+            // Find all games not in the past
+            return Game.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor;
                 result.rows.map((game, index) => {
