@@ -28,7 +28,6 @@ const resolvers = {
     },
     Query: {
         games: (parent, args, context) => {
-            console.log(args)
             if (!args.cursor) {
                 args.cursor = Date.now();
             } else {
