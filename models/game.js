@@ -28,8 +28,8 @@ const Game = sequelize.define('game', {
   address: {
     type: Sequelize.STRING
   },
-  geometry: {
-    type: Sequelize.GEOMETRY('POINT')
+  location: {
+    type: Sequelize.GEOMETRY('POINT', 4326)
   },
   sport: {
     type: Sequelize.STRING(50),

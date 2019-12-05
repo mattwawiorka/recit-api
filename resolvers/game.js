@@ -1,12 +1,11 @@
-const Op = require('sequelize').Op;
+const { Op, fn, col, literal } = require('sequelize');
 const Game = require('../models/game');
 const User = require('../models/user');
 const GamePlayer = require('../models/game-player');
 const validator = require('validator');
 const { PubSub } = require('graphql-subscriptions');
 const dateTool = require('../util/dateTool');
-const distanceTool = require('google-distance-matrix');
-const API = require('../api.json')
+const geolib = require('geolib');
 
 const pubsub = new PubSub();
 
@@ -14,9 +13,6 @@ const GAME_ADDED = 'GAME_ADDED';
 const GAME_DELETED = 'GAME_DELETED';
 
 GAMES_PER_PAGE = 15;
-
-distanceTool.key(API.key)
-distanceTool.units('imperial')
 
 const resolvers = {
     Subscription: {
@@ -32,55 +28,69 @@ const resolvers = {
         },
     },
     Query: {
-        games: async (parent, args, context) => {
-            if (!args.cursor) {
-                args.cursor = Date.now();
-            } else {
-                args.cursor = new Date(parseInt(args.cursor)) 
-            }
+        games: (parent, args, context) => {
+            console.log(args)
+
+            let cursor = args.cursor ? args.cursor : Date.now();
+            let currentLoc = args.currentLoc ? args.currentLoc : [47.6062, 122.3321]
+            let sport = args.sport ? args.sport : "ALL"
+            let startDate = args.startDate ? args.startDate : "ALL"
 
             let options = {
+                attributes: {
+                    include: [
+                        [
+                            fn(
+                                'ST_Distance',
+                                col('location'),
+                                fn('Point', currentLoc[0], currentLoc[1])
+                            ),
+                            'distance'
+                        ]
+                    ]
+                },
                 where: {
                     dateTime: {
-                        [Op.gt]: args.cursor
+                        [Op.gt]: cursor
                     }, 
                 },
                 limit: GAMES_PER_PAGE, 
                 order: [
                     ['dateTime', 'ASC']
                 ]
+                // order: literal('distance ASC')
             };
 
-            if (args.sport !== "ALL") {
-                options.where.sport = args.sport 
+            if (sport !== "ALL") {
+                options.where.sport = sport 
             }
 
-            if (args.startDate !== "ALL") {
-                if (args.startDate === "TODAY") {
+            if (startDate !== "ALL") {
+                if (startDate === "TODAY") {
                     options.where.dateTime = {
-                        [Op.gt]: args.cursor,
+                        [Op.gt]: cursor,
                         [Op.lt]: dateTool.getTomorrow().valueOf()
                     }
                 }
-                else if (args.startDate === "TOMORROW") {
+                else if (startDate === "TOMORROW") {
                     options.where.dateTime = {
                         [Op.gt]: dateTool.getTomorrow().valueOf(),
                         [Op.lt]: dateTool.getDayAfterTomorrow().valueOf()
                     }
                 }
-                else if (args.startDate === "LATERTHISWEEK") {
+                else if (startDate === "LATERTHISWEEK") {
                     options.where.dateTime = {
                         [Op.gt]: dateTool.getDayAfterTomorrow().valueOf(),
                         [Op.lt]: dateTool.getEndOfWeek().valueOf()
                     }
                 }
-                else if (args.startDate === "NEXTWEEK") {
+                else if (startDate === "NEXTWEEK") {
                     options.where.dateTime = {
                         [Op.gt]: dateTool.getEndOfWeek().valueOf(),
                         [Op.lt]: dateTool.getEndOfNextWeek().valueOf()
                     }
                 }
-                else if (args.startDate === "LATER") {
+                else if (startDate === "LATER") {
                     options.where.dateTime = {
                         [Op.gt]: dateTool.getEndOfNextWeek().valueOf()
                     }
@@ -89,50 +99,34 @@ const resolvers = {
             
             // Find all games not in the past
             return Game.findAndCountAll(options)
-            .then( async result => {
-                let edges = [], endCursor;
-                return Promise.all(
-                    result.rows.map( async (game, index) => {
-                        let distance;
-                        // Wait for Google Maps Distance API to return distance
-                        let promise = new Promise((resolve, reject) => {
-                            distanceTool.matrix(
-                                [args.currentLocal[0].toString() + ',' + args.currentLocal[1].toString()], 
-                                [game.geometry.coordinates[0].toString() + ',' + game.geometry.coordinates[1].toString()], 
-                                (err, distances) => {
-                                    if (!err) {
-                                        distance = distances.rows[0].elements[0].distance.value;                        
-                                        resolve();
-                                    }
-                                }
-                            )
-                        })
+            .then( result => {
+                let edges = [], endCursor; 
+                result.rows.map( (game, index) => {
+                    console.log('game',game)
+                    edges.push({
+                        cursor: game.dataValues.dateTime,
+                        distance: geolib.convertDistance(geolib.getDistance(
+                            { latitude: currentLoc[0], longitude: currentLoc[1] },
+                            { latitude: game.location.coordinates[0], longitude: game.location.coordinates[1] }
+                        ), 'mi'),
+                        node: game.dataValues
+                    });
 
-                        await promise;
-
-                        edges.push({
-                            cursor: game.dataValues.dateTime,
-                            distance: distance,
-                            node: game.dataValues
-                        });
-
-                        if (index === result.rows.length - 1) {
-                            endCursor = game.dataValues.dateTime;
-                        }
-                    })
-                )
-                .then(() => {
-                    console.log(edges)
-                    return {
-                        totalCount: result.count,
-                        edges: edges,
-                        pageInfo: {
-                            endCursor: endCursor,
-                            hasNextPage: result.rows.length === GAMES_PER_PAGE
-                        }
+                    if (index === result.rows.length - 1) {
+                        endCursor = game.dataValues.dateTime;
                     }
                 })
-            }).catch(error => {
+                return {
+                    totalCount: result.count,
+                    edges: edges,
+                    pageInfo: {
+                        endCursor: endCursor,
+                        hasNextPage: result.rows.length === GAMES_PER_PAGE
+                    }
+                }
+            })
+            .catch(error => {
+                console.log(error)
                 throw error;
             });
         },
@@ -250,7 +244,7 @@ const resolvers = {
                     endDateTime: endDateTime,
                     venue: venue,
                     address: address,
-                    geometry: {type: 'Point', coordinates: coords},
+                    location: {type: 'Point', coordinates: coords},
                     sport: sport,
                     players: players,
                     description: description,
@@ -279,7 +273,7 @@ const resolvers = {
             });
         },
         updateGame: (parent, args, context) => {
-            let { title, dateTime, endDateTime, venue, address, sport, players, description, public } = args.gameInput;
+            let { title, dateTime, endDateTime, venue, address, coords, sport, players, description, public } = args.gameInput;
             const errors = [];
 
             const now = new Date();
@@ -330,6 +324,7 @@ const resolvers = {
                         endDateTime: endDateTime || game.endDateTime,
                         venue: venue || game.venue,
                         address: address || game.address,
+                        location: coords ? {type: 'Point', coordinates: coords} : game.location,
                         sport: sport || game.sport,
                         players: players || game.players,
                         description: description || game.description,

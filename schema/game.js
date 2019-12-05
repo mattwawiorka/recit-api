@@ -8,7 +8,7 @@ const typeDef = `
         endDateTime: String
         venue: String
         address: String
-        coords: [Float]
+        location: Point
         sport: String
         players: Int
         description: String
@@ -16,6 +16,11 @@ const typeDef = `
         playersInterest: [User]
         image: String
         public: Boolean
+    }
+
+    type Point {
+        type: String
+        coordinates: [Float]
     }
 
     type Edge {
@@ -56,7 +61,7 @@ const typeDef = `
     }
 
     type Query {
-        games(cursor: String, sport: String, startDate: String, userId: ID, currentLocal: [Float]): GameFeed
+        games(cursor: String, sport: String, startDate: String, userId: ID, currentLoc: [Float]): GameFeed
         game(id: ID!): Game!
         players(gameId: ID!): [Player]
         host(gameId: ID!): ID
