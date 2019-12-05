@@ -5,6 +5,8 @@ const GamePlayer = require('../models/game-player');
 const validator = require('validator');
 const { PubSub } = require('graphql-subscriptions');
 const dateTool = require('../util/dateTool');
+const distanceTool = require('google-distance-matrix');
+const API = require('../api.json')
 
 const pubsub = new PubSub();
 
@@ -12,6 +14,9 @@ const GAME_ADDED = 'GAME_ADDED';
 const GAME_DELETED = 'GAME_DELETED';
 
 GAMES_PER_PAGE = 15;
+
+distanceTool.key(API.key)
+distanceTool.units('imperial')
 
 const resolvers = {
     Subscription: {
@@ -27,7 +32,7 @@ const resolvers = {
         },
     },
     Query: {
-        games: (parent, args, context) => {
+        games: async (parent, args, context) => {
             if (!args.cursor) {
                 args.cursor = Date.now();
             } else {
@@ -81,31 +86,52 @@ const resolvers = {
                     }
                 }
             }
-
+            
             // Find all games not in the past
             return Game.findAndCountAll(options)
-            .then( result => {
+            .then( async result => {
                 let edges = [], endCursor;
-                result.rows.map((game, index) => {
-                    edges.push({
-                        cursor: game.dataValues.dateTime,
-                        distance: 1,
-                        node: game.dataValues
-                    });
+                return Promise.all(
+                    result.rows.map( async (game, index) => {
+                        let distance;
+                        // Wait for Google Maps Distance API to return distance
+                        let promise = new Promise((resolve, reject) => {
+                            distanceTool.matrix(
+                                [args.currentLocal[0].toString() + ',' + args.currentLocal[1].toString()], 
+                                [game.geometry.coordinates[0].toString() + ',' + game.geometry.coordinates[1].toString()], 
+                                (err, distances) => {
+                                    if (!err) {
+                                        distance = distances.rows[0].elements[0].distance.value;                        
+                                        resolve();
+                                    }
+                                }
+                            )
+                        })
 
-                    if (index === result.rows.length - 1) {
-                        endCursor = game.dataValues.dateTime;
+                        await promise;
+
+                        edges.push({
+                            cursor: game.dataValues.dateTime,
+                            distance: distance,
+                            node: game.dataValues
+                        });
+
+                        if (index === result.rows.length - 1) {
+                            endCursor = game.dataValues.dateTime;
+                        }
+                    })
+                )
+                .then(() => {
+                    console.log(edges)
+                    return {
+                        totalCount: result.count,
+                        edges: edges,
+                        pageInfo: {
+                            endCursor: endCursor,
+                            hasNextPage: result.rows.length === GAMES_PER_PAGE
+                        }
                     }
                 })
-                return {
-                    totalCount: result.count,
-                    edges: edges,
-                    pageInfo: {
-                        endCursor: endCursor,
-                        hasNextPage: result.rows.length === GAMES_PER_PAGE
-                    }
-
-                }
             }).catch(error => {
                 throw error;
             });
@@ -166,7 +192,7 @@ const resolvers = {
     },
     Mutation: {
         createGame: (parent, args, context) => {
-            let { title, dateTime, endDateTime, venue, address, sport, players, description, public } = args.gameInput;
+            let { title, dateTime, endDateTime, venue, address, coords, sport, players, description, public } = args.gameInput;
             const errors = [];
 
             const now = new Date();
@@ -215,6 +241,8 @@ const resolvers = {
                     error.code = 401;   
                     throw error;
                 }
+                console.log('here?')
+                console.log('coords', coords)
 
                 return Game.create({
                     title: title,
@@ -222,6 +250,7 @@ const resolvers = {
                     endDateTime: endDateTime,
                     venue: venue,
                     address: address,
+                    geometry: {type: 'Point', coordinates: coords},
                     sport: sport,
                     players: players,
                     description: description,

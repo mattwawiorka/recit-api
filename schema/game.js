@@ -8,6 +8,7 @@ const typeDef = `
         endDateTime: String
         venue: String
         address: String
+        coords: [Float]
         sport: String
         players: Int
         description: String
@@ -19,7 +20,7 @@ const typeDef = `
 
     type Edge {
         cursor: String
-        distance: Int
+        distance: Float
         node: Game
     }
     
@@ -46,6 +47,7 @@ const typeDef = `
         endDateTime: String
         venue: String
         address: String
+        coords: [Float]
         sport: String
         players: Int
         description: String
@@ -54,7 +56,7 @@ const typeDef = `
     }
 
     type Query {
-        games(cursor: String, sport: String, startDate: String, userId: ID): GameFeed
+        games(cursor: String, sport: String, startDate: String, userId: ID, currentLocal: [Float]): GameFeed
         game(id: ID!): Game!
         players(gameId: ID!): [Player]
         host(gameId: ID!): ID
