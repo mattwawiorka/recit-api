@@ -29,9 +29,8 @@ const resolvers = {
     },
     Query: {
         games: (parent, args, context) => {
-            console.log(args)
 
-            let cursor = args.cursor ? args.cursor : Date.now();
+            let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
             let currentLoc = args.currentLoc ? args.currentLoc : [47.6062, 122.3321]
             let sport = args.sport ? args.sport : "ALL"
             let startDate = args.startDate ? args.startDate : "ALL"
