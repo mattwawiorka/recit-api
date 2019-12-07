@@ -1,4 +1,4 @@
-const { Op, fn, col, literal } = require('sequelize');
+const { Op, fn, col, literal, where } = require('sequelize');
 const Game = require('../models/game');
 const User = require('../models/user');
 const GamePlayer = require('../models/game-player');
@@ -34,30 +34,41 @@ const resolvers = {
             let currentLoc = args.currentLoc ? args.currentLoc : [47.6062, 122.3321]
             let sport = args.sport ? args.sport : "ALL"
             let startDate = args.startDate ? args.startDate : "ALL"
+            let bounds = args.bounds.length !== 0 ? args.bounds : [47.7169839910907, -122.32040939782564, 47.54058537009015, -122.3709744021744]
+
+            const polygon = `POLYGON((${bounds[0].toString()}  ${bounds[1].toString()}, ${bounds[0].toString()}  ${bounds[3].toString()}, ${bounds[2].toString()}  ${bounds[3].toString()}, ${bounds[2].toString()}  ${bounds[1].toString()}, ${bounds[0].toString()}  ${bounds[1].toString()}))`;
+            console.log(args)
 
             let options = {
-                attributes: {
-                    include: [
-                        [
-                            fn(
-                                'ST_Distance',
-                                col('location'),
-                                fn('Point', currentLoc[0], currentLoc[1])
-                            ),
-                            'distance'
-                        ]
-                    ]
-                },
+                // attributes: {
+                //     include: [
+                //         [
+                //             fn(
+                //                 'ST_Distance',
+                //                 col('location'),
+                //                 fn('Point', currentLoc[0], currentLoc[1])
+                //             ),
+                //             'distance'
+                //         ]
+                //     ]
+                // },
                 where: {
                     dateTime: {
                         [Op.gt]: cursor
                     }, 
+                    location: where(
+                        fn(
+                            'ST_Within',
+                            col('location'),
+                            fn('ST_GEOMFROMTEXT', polygon)
+                        ),
+                        1
+                    )
                 },
                 limit: GAMES_PER_PAGE, 
                 order: [
                     ['dateTime', 'ASC']
                 ]
-                // order: literal('distance ASC')
             };
 
             if (sport !== "ALL") {
@@ -101,7 +112,7 @@ const resolvers = {
             .then( result => {
                 let edges = [], endCursor; 
                 result.rows.map( (game, index) => {
-                    console.log('game',game)
+
                     edges.push({
                         cursor: game.dataValues.dateTime,
                         distance: geolib.convertDistance(geolib.getDistance(

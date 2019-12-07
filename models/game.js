@@ -29,7 +29,8 @@ const Game = sequelize.define('game', {
     type: Sequelize.STRING
   },
   location: {
-    type: Sequelize.GEOMETRY('POINT', 4326)
+    type: Sequelize.GEOMETRY('POINT', 4326),
+    allowNull: false
   },
   sport: {
     type: Sequelize.STRING(50),
