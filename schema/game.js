@@ -10,6 +10,7 @@ const typeDef = `
         address: String
         location: Point
         sport: String
+        spots: Int
         players: Int
         description: String
         playersRsvp: [User]
@@ -54,7 +55,7 @@ const typeDef = `
         address: String
         coords: [Float]
         sport: String
-        players: Int
+        spots: Int
         description: String
         image: String
         public: Boolean

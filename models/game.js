@@ -36,7 +36,7 @@ const Game = sequelize.define('game', {
     type: Sequelize.STRING(50),
     allowNull: false
   },
-  players: {
+  spots: {
     type: Sequelize.INTEGER,
     allowNull: false,
     defaultValue: 1

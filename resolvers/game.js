@@ -30,6 +30,8 @@ const resolvers = {
     Query: {
         games: (parent, args, context) => {
 
+            GamePlayer.belongsTo(Game);
+
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
             let currentLoc = args.currentLoc ? args.currentLoc : [47.6062, 122.3321]
             let sport = args.sport ? args.sport : "ALL"
@@ -37,21 +39,10 @@ const resolvers = {
             let bounds = args.bounds.length !== 0 ? args.bounds : [47.7169839910907, -122.32040939782564, 47.54058537009015, -122.3709744021744]
 
             const polygon = `POLYGON((${bounds[0].toString()}  ${bounds[1].toString()}, ${bounds[0].toString()}  ${bounds[3].toString()}, ${bounds[2].toString()}  ${bounds[3].toString()}, ${bounds[2].toString()}  ${bounds[1].toString()}, ${bounds[0].toString()}  ${bounds[1].toString()}))`;
-            console.log(args)
 
             let options = {
-                // attributes: {
-                //     include: [
-                //         [
-                //             fn(
-                //                 'ST_Distance',
-                //                 col('location'),
-                //                 fn('Point', currentLoc[0], currentLoc[1])
-                //             ),
-                //             'distance'
-                //         ]
-                //     ]
-                // },
+                subQuery: false,
+                raw: true,
                 where: {
                     dateTime: {
                         [Op.gt]: cursor
@@ -66,9 +57,16 @@ const resolvers = {
                     )
                 },
                 limit: GAMES_PER_PAGE, 
+                attributes: { 
+                    include: [[fn("COUNT", col("users.id")), "players"]] 
+                },
+                include: [{
+                    model: User, attributes: []
+                }],
+                group: ['id'],
                 order: [
-                    ['dateTime', 'ASC']
-                ]
+                    ["dateTime", "ASC"]
+                ],
             };
 
             if (sport !== "ALL") {
@@ -112,18 +110,18 @@ const resolvers = {
             .then( result => {
                 let edges = [], endCursor; 
                 result.rows.map( (game, index) => {
-
+                    console.log(game)
                     edges.push({
-                        cursor: game.dataValues.dateTime,
+                        cursor: game.dateTime,
                         distance: geolib.convertDistance(geolib.getDistance(
                             { latitude: currentLoc[0], longitude: currentLoc[1] },
                             { latitude: game.location.coordinates[0], longitude: game.location.coordinates[1] }
                         ), 'mi'),
-                        node: game.dataValues
+                        node: game
                     });
 
                     if (index === result.rows.length - 1) {
-                        endCursor = game.dataValues.dateTime;
+                        endCursor = game.dateTime;
                     }
                 })
                 return {
@@ -196,7 +194,7 @@ const resolvers = {
     },
     Mutation: {
         createGame: (parent, args, context) => {
-            let { title, dateTime, endDateTime, venue, address, coords, sport, players, description, public } = args.gameInput;
+            let { title, dateTime, endDateTime, venue, address, coords, sport, spots, description, public } = args.gameInput;
             const errors = [];
 
             const now = new Date();
@@ -223,10 +221,10 @@ const resolvers = {
                 if (!context.isAuth) {
                     errors.push({ message: 'Must be logged in to create game' });
                 }
-                if (!title || !dateTime || !venue || !address || !sport || !description || !players) {
+                if (!title || !dateTime || !venue || !address || !sport || !description || !spots) {
                     errors.push({ message: 'Please fill in all required fields' });
                 }
-                else if ((players < 1) || (players > 32)) {
+                else if ((spots < 1) || (spots > 32)) {
                     errors.push({ message: 'Number of players must be between 1-32' });
                 }
                 else if (!validator.isLength(description, {min:undefined, max: 1000})) {
@@ -256,7 +254,7 @@ const resolvers = {
                     address: address,
                     location: {type: 'Point', coordinates: coords},
                     sport: sport,
-                    players: players,
+                    spots: spots,
                     description: description,
                     public: public
                 })
@@ -283,7 +281,7 @@ const resolvers = {
             });
         },
         updateGame: (parent, args, context) => {
-            let { title, dateTime, endDateTime, venue, address, coords, sport, players, description, public } = args.gameInput;
+            let { title, dateTime, endDateTime, venue, address, coords, sport, spots, description, public } = args.gameInput;
             const errors = [];
 
             const now = new Date();
@@ -336,7 +334,7 @@ const resolvers = {
                         address: address || game.address,
                         location: coords ? {type: 'Point', coordinates: coords} : game.location,
                         sport: sport || game.sport,
-                        players: players || game.players,
+                        players: spots || game.spots,
                         description: description || game.description,
                         public: public || game.public
                     }) 
