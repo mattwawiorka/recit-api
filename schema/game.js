@@ -62,7 +62,7 @@ const typeDef = `
     }
 
     type Query {
-        games(cursor: String, sport: String, startDate: String, userId: ID, currentLoc: [Float], bounds: [Float]): GameFeed
+        games(cursor: String, sport: String, startDate: String, userId: ID, currentLoc: [Float], bounds: [Float], sortOrder: String): GameFeed
         game(id: ID!): Game!
         players(gameId: ID!): [Player]
         host(gameId: ID!): ID

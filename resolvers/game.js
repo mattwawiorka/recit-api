@@ -29,8 +29,7 @@ const resolvers = {
     },
     Query: {
         games: (parent, args, context) => {
-
-            GamePlayer.belongsTo(Game);
+            console.log(args)
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
             let currentLoc = args.currentLoc ? args.currentLoc : [47.6062, 122.3321]
@@ -58,16 +57,26 @@ const resolvers = {
                 },
                 limit: GAMES_PER_PAGE, 
                 attributes: { 
-                    include: [[fn("COUNT", col("users.id")), "players"]] 
+                    include: [
+                        [fn("COUNT", col("users.id")), "players"],
+                        [literal('(spots - COUNT(`users`.`id`))'), 'openSpots']
+                    ] 
                 },
                 include: [{
                     model: User, attributes: []
                 }],
                 group: ['id'],
-                order: [
-                    ["dateTime", "ASC"]
-                ],
             };
+
+            if (args.sortOrder === "SPOTS") {
+                options.order = [
+                    [literal('(spots - COUNT(`users`.`id`))'), 'DESC']
+                ]
+            } else {
+                options.order = [
+                    ["dateTime", "ASC"]
+                ]
+            }
 
             if (sport !== "ALL") {
                 options.where.sport = sport 
@@ -297,10 +306,10 @@ const resolvers = {
                 if (!user) {
                     errors.push({ message: 'Must be logged in to create game' });
                 }
-                if (!title || !dateTime || !venue || !address || !sport || !description || !players) {
+                if (!title || !dateTime || !venue || !address || !sport || !description || !spots) {
                     errors.push({ message: 'Please fill in all required fields' });
                 }
-                else if ((players < 1) || (players > 32)) {
+                else if ((spots < 1) || (spots > 32)) {
                     errors.push({ message: 'Number of players must be between 1-32' });
                 }
                 else if (!validator.isLength(description, {min:undefined, max: 1000})) {
@@ -334,7 +343,7 @@ const resolvers = {
                         address: address || game.address,
                         location: coords ? {type: 'Point', coordinates: coords} : game.location,
                         sport: sport || game.sport,
-                        players: spots || game.spots,
+                        spots: spots || game.spots,
                         description: description || game.description,
                         public: public || game.public
                     }) 
