@@ -29,7 +29,6 @@ const resolvers = {
     },
     Query: {
         games: (parent, args, context) => {
-            console.log(args)
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
             let currentLoc = args.currentLoc ? args.currentLoc : [47.6062, 122.3321]
@@ -53,7 +52,7 @@ const resolvers = {
                             fn('ST_GEOMFROMTEXT', polygon)
                         ),
                         1
-                    )
+                    ),
                 },
                 limit: GAMES_PER_PAGE, 
                 attributes: { 
@@ -65,7 +64,8 @@ const resolvers = {
                 include: [{
                     model: User, attributes: []
                 }],
-                group: ['id'],
+                group: ['id', 'spots'],
+                having: literal('(spots - COUNT(`users`.`id`)) > 0')
             };
 
             if (args.sortOrder === "SPOTS") {
@@ -113,13 +113,25 @@ const resolvers = {
                     }
                 }
             }
+
+            if (args.openSpots === "2") {
+                options.having = literal('(spots - COUNT(`users`.`id`)) > 1')
+            }
+            else if (args.openSpots === "3") {
+                options.having = literal('(spots - COUNT(`users`.`id`)) > 2')
+            }
+            else if (args.openSpots === "4") {
+                options.having = literal('(spots - COUNT(`users`.`id`)) > 3')
+            }
+            else if (args.openSpots === "0") {
+                options.having = null
+            }
             
             // Find all games not in the past
             return Game.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor; 
                 result.rows.map( (game, index) => {
-                    console.log(game)
                     edges.push({
                         cursor: game.dateTime,
                         distance: geolib.convertDistance(geolib.getDistance(
@@ -214,77 +226,66 @@ const resolvers = {
             }
             const endD = new Date(endDateTime);
 
-            console.log(endD)
-
             // Default public game
             if (!public) {
                 public = true;
             }
 
-            // return User.findOne({
-            //     where: {
-            //         id: context.user
-            //     }
-            // })
-            // .then ( user => {
-                if (!context.isAuth) {
-                    errors.push({ message: 'Must be logged in to create game' });
-                }
-                if (!title || !dateTime || !venue || !address || !sport || !description || !spots) {
-                    errors.push({ message: 'Please fill in all required fields' });
-                }
-                else if ((spots < 1) || (spots > 32)) {
-                    errors.push({ message: 'Number of players must be between 1-32' });
-                }
-                else if (!validator.isLength(description, {min:undefined, max: 1000})) {
-                    errors.push({ message: 'Description must be less than 1000 characters' });
-                }
-                else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
-                    errors.push({ message: 'Start date cannot be in the past' });
-                }
-                else if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
-                    errors.push({ message: 'End date cannot be before starting date' });
-                }
-                console.log('past validators')
-                if (errors.length > 0) {
-                    const error = new Error('Could not create game');
-                    error.data = errors;
-                    error.code = 401;   
-                    throw error;
-                }
-                console.log('here?')
-                console.log('coords', coords)
+            if (!context.isAuth) {
+                errors.push({ message: 'Must be logged in to create game' });
+            }
+            if (!title || !dateTime || !venue || !address || !sport || !description || !spots) {
+                errors.push({ message: 'Please fill in all required fields' });
+            }
+            else if ((spots < 1) || (spots > 32)) {
+                errors.push({ message: 'Number of players must be between 1-32' });
+            }
+            else if (!validator.isLength(description, {min:undefined, max: 1000})) {
+                errors.push({ message: 'Description must be less than 1000 characters' });
+            }
+            else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
+                errors.push({ message: 'Start date cannot be in the past' });
+            }
+            else if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
+                errors.push({ message: 'End date cannot be before starting date' });
+            }
 
-                return Game.create({
-                    title: title,
-                    dateTime: dateTime,
-                    endDateTime: endDateTime,
-                    venue: venue,
-                    address: address,
-                    location: {type: 'Point', coordinates: coords},
-                    sport: sport,
-                    spots: spots,
-                    description: description,
-                    public: public
-                })
-                .then( game => {
-                    return GamePlayer.create({
-                            role: 1,
-                            gameId: game.id,
-                            userId: context.user
-                        })
-                    .then( gamePlayer => {
-                        pubsub.publish(GAME_ADDED, {
-                            gameAdded: {
-                                cursor: game.dataValues.dateTime,
-                                distance: 1,
-                                node: game.dataValues
-                            }
-                        })
-                        return game;
+            if (errors.length > 0) {
+                const error = new Error('Could not create game');
+                error.data = errors;
+                error.code = 401;   
+                throw error;
+            }
+
+            return Game.create({
+                title: title,
+                dateTime: dateTime,
+                endDateTime: endDateTime,
+                venue: venue,
+                address: address,
+                location: {type: 'Point', coordinates: coords},
+                sport: sport,
+                spots: spots,
+                description: description,
+                public: public
+            })
+            .then( game => {
+                return GamePlayer.create({
+                        role: 1,
+                        gameId: game.id,
+                        userId: context.user
                     })
+                .then( gamePlayer => {
+                    pubsub.publish(GAME_ADDED, {
+                        gameAdded: {
+                            cursor: game.dataValues.dateTime,
+                            distance: 1,
+                            node: game.dataValues
+                        }
+                    })
+                    return game;
                 })
-            // })
+            })
             .catch(error => {
                 throw error;
             });
@@ -297,59 +298,53 @@ const resolvers = {
             const d = new Date(dateTime);
             const endD = new Date(endDateTime);
 
-            return User.findOne({
+
+            if (!context.isAuth) {
+                errors.push({ message: 'Must be logged in to create game' });
+            }
+            if (!title || !dateTime || !venue || !address || !sport || !description || !spots) {
+                errors.push({ message: 'Please fill in all required fields' });
+            }
+            else if ((spots < 1) || (spots > 32)) {
+                errors.push({ message: 'Number of players must be between 1-32' });
+            }
+            else if (!validator.isLength(description, {min:undefined, max: 1000})) {
+                errors.push({ message: 'Description must be less than 1000 characters' });
+            }
+            else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
+                errors.push({ message: 'Start date cannot be in the past' });
+            }
+            else if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
+                errors.push({ message: 'End date cannot be before starting date' });
+            }
+
+            if (errors.length > 0) {
+                const error = new Error('Could not update game');
+                error.data = errors;
+                error.code = 401;   
+                throw error;
+            }
+
+            return Game.findOne({
                 where: {
-                    id: context.user
+                    id: args.id
                 }
-            })
-            .then ( user => {
-                if (!user) {
-                    errors.push({ message: 'Must be logged in to create game' });
-                }
-                if (!title || !dateTime || !venue || !address || !sport || !description || !spots) {
-                    errors.push({ message: 'Please fill in all required fields' });
-                }
-                else if ((spots < 1) || (spots > 32)) {
-                    errors.push({ message: 'Number of players must be between 1-32' });
-                }
-                else if (!validator.isLength(description, {min:undefined, max: 1000})) {
-                    errors.push({ message: 'Description must be less than 1000 characters' });
-                }
-                else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
-                    errors.push({ message: 'Start date cannot be in the past' });
-                }
-                else if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
-                    errors.push({ message: 'End date cannot be before starting date' });
-                }
-
-                if (errors.length > 0) {
-                    const error = new Error('Could not update game');
-                    error.data = errors;
-                    error.code = 401;   
-                    throw error;
-                }
-
-                return Game.findOne({
-                    where: {
-                        id: args.id
-                    }
+            }) 
+            .then( game => {
+                return game.update({
+                    title: title || game.title,
+                    dateTime: dateTime || game.dateTime,
+                    endDateTime: endDateTime || game.endDateTime,
+                    venue: venue || game.venue,
+                    address: address || game.address,
+                    location: coords ? {type: 'Point', coordinates: coords} : game.location,
+                    sport: sport || game.sport,
+                    spots: spots || game.spots,
+                    description: description || game.description,
+                    public: public || game.public
                 }) 
-                .then( game => {
-                    return game.update({
-                        title: title || game.title,
-                        dateTime: dateTime || game.dateTime,
-                        endDateTime: endDateTime || game.endDateTime,
-                        venue: venue || game.venue,
-                        address: address || game.address,
-                        location: coords ? {type: 'Point', coordinates: coords} : game.location,
-                        sport: sport || game.sport,
-                        spots: spots || game.spots,
-                        description: description || game.description,
-                        public: public || game.public
-                    }) 
-                    .then( result => {
-                        return result;
-                    })
+                .then( result => {
+                    return result;
                 })
             })
             .catch(error => {
