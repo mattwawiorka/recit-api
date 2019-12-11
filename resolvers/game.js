@@ -65,7 +65,6 @@ const resolvers = {
                     model: User, attributes: []
                 }],
                 group: ['id', 'spots'],
-                having: literal('(spots - COUNT(`users`.`id`)) > 0')
             };
 
             if (args.sortOrder === "SPOTS") {
@@ -114,7 +113,10 @@ const resolvers = {
                 }
             }
 
-            if (args.openSpots === "2") {
+            if (args.openSpots === "1") {
+                options.having = literal('(spots - COUNT(`users`.`id`)) > 0')
+            }
+            else if (args.openSpots === "2") {
                 options.having = literal('(spots - COUNT(`users`.`id`)) > 1')
             }
             else if (args.openSpots === "3") {
@@ -122,9 +124,6 @@ const resolvers = {
             }
             else if (args.openSpots === "4") {
                 options.having = literal('(spots - COUNT(`users`.`id`)) > 3')
-            }
-            else if (args.openSpots === "0") {
-                options.having = null
             }
             
             // Find all games not in the past
@@ -200,13 +199,14 @@ const resolvers = {
         },
         host: (parent, args) => {
             return GamePlayer.findOne({
+                raw: true,
                 where: {
                     gameId: args.gameId,
                     role: 1
                 }
             })
             .then(host => {
-                return host.dataValues.userId
+                return host.userId
             })
             .catch(error => {
                 throw error;
@@ -351,7 +351,13 @@ const resolvers = {
                 throw error;
             });          
         },
-        deleteGame: (parent, args) => {
+        deleteGame: (parent, args, context) => {
+            const errors = [];
+
+            if (!context.isAuth) {
+                errors.push({ message: 'Must be logged in to cancel game' });
+            }
+
             return Game.destroy({
                 where: {
                     id: args.gameId
@@ -371,46 +377,45 @@ const resolvers = {
             });
         },
         joinGame: (parent, args, context) => {
-            return User.findOne({
+            const errors = [];
+
+            if (!context.isAuth) {
+                errors.push({ message: 'Must be logged in to join game' });
+            }
+
+            return GamePlayer.findOrCreate({
                 where: {
-                    id: context.user
+                    userId: context.user,
+                    gameId: args.gameId
+                },
+                defaults: {
+                    role: 2,
+                    userId: context.user,
+                    gameId: args.gameId
                 }
             })
-            .then( user => {
-                if (!user) {
-                    return false;
+            .spread( (player, created) => {
+                console.log(player)
+                if (created) {
+                    return { id: player.dataValues.id };
                 }
-                return GamePlayer.findOrCreate({
-                    where: {
-                        userId: user.id,
-                        gameId: args.gameId
-                    },
-                    defaults: {
-                        role: 2,
-                        userId: user.id,
-                        gameId: args.gameId
-                    }
-                })
-                .spread( (player, created) => {
-                    if (created) {
-                        return true;
-                    }
-                    else if (!created & player.role === 3) {
-                        // Interested now joining
-                        return player.update({
-                            role: 2
-                        })
-                        .then( () => {
-                            return true
-                        })
-                    }
-                    else {
-                        return false
-                    }
-                })
+                else if (!created & player.role === 3) {
+                    // Interested now joining
+                    return player.update({
+                        role: 2
+                    })
+                    .then( (player) => {
+                        return { id: player.dataValues.id };
+                    })
+                }
+                else {
+                    errors.push({ message: 'Could not join game' });
+                    throw error;
+                }
             })
             .catch(error => {
                 console.log(error);
+                throw error;
             });
         },
         interestGame: (parent, args, context, req) => {
@@ -458,22 +463,21 @@ const resolvers = {
             });
         },
         leaveGame: (parent, args, context, req) => {
-            return User.findOne({
+            const errors = [];
+
+            if (!context.isAuth) {
+                errors.push({ message: 'Must be logged in to join game' });
+            }
+
+            return GamePlayer.findOne({
                 where: {
-                    id: context.user
+                    userId: context.user,
+                    gameId: args.gameId
                 }
             })
-            .then( user => {
-                return GamePlayer.findOne({
-                    where: {
-                        userId: user.id,
-                        gameId: args.gameId
-                    }
-                })
-            })
             .then( gamePlayer => {
-                const isHost = (gamePlayer.role === 1) ? true : false;
-                return GamePlayer.destroy( {
+                const player = gamePlayer;
+                return GamePlayer.destroy({
                     where: {
                         gameId: gamePlayer.gameId,
                         userId: gamePlayer.userId
@@ -481,34 +485,11 @@ const resolvers = {
                 })
                 .then( rowsDeleted => {
                     if (rowsDeleted === 1) {
-                        return GamePlayer.findAll({
-                            where: {
-                                gameId: args.gameId
-                            }
-                        })
-                        .then( players => {
-                            if (players.length === 0) {
-                                return resolvers.Mutation.deleteGame(parent, args);
-                            } 
-                            if (isHost) {
-                                // TODO: Ask if host really wants to leave game
-                                return GamePlayer.update(
-                                    {role: 1},
-                                    {where: {
-                                        gameId: args.gameId,
-                                        userId: players[0].dataValues.userId
-                                    }}
-                                )
-                                .then( result => {
-                                    return true;
-                                })
-    
-                            } else {
-                                return true;
-                            }
-                        })
-                    } else {
-                        return false;
+                        return { id: player.dataValues.id };
+                    } 
+                    else {
+                        errors.push({ message: 'Could not join game' });
+                        throw error;
                     }
                 })
             })

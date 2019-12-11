@@ -42,8 +42,8 @@ const typeDef = `
     }
 
     type Player {
-        id: ID
-        name: String!
+        id: ID!
+        name: String
         role: Int
     }
 
@@ -70,9 +70,9 @@ const typeDef = `
 
     type Mutation {
         createGame(gameInput: gameInput): Game
-        joinGame(gameId: ID!): Boolean
+        joinGame(gameId: ID!): Player
         interestGame(gameId: ID!): Boolean
-        leaveGame(gameId: ID!): Boolean
+        leaveGame(gameId: ID!): Player
         updateGame(id: ID!, gameInput: gameInput): Game
         deleteGame(gameId: ID!): Boolean
     }
