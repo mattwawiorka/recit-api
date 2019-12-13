@@ -226,11 +226,6 @@ const resolvers = {
             }
             const endD = new Date(endDateTime);
 
-            // Default public game
-            if (!public) {
-                public = true;
-            }
-
             if (!context.isAuth) {
                 errors.push({ message: 'Must be logged in to create game' });
             }
@@ -298,7 +293,6 @@ const resolvers = {
             const d = new Date(dateTime);
             const endD = new Date(endDateTime);
 
-
             if (!context.isAuth) {
                 errors.push({ message: 'Must be logged in to create game' });
             }
@@ -341,7 +335,7 @@ const resolvers = {
                     sport: sport || game.sport,
                     spots: spots || game.spots,
                     description: description || game.description,
-                    public: public || game.public
+                    public: public
                 }) 
                 .then( result => {
                     return result;
