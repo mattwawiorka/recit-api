@@ -28,6 +28,7 @@ const resolvers = {
         },
     },
     Query: {
+        // Must SET GLOBAL sql_mode = '' in mysql for games feed to work 
         games: (parent, args, context) => {
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
