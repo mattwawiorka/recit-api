@@ -15,7 +15,7 @@ const sequelize = require('./util/db');
 const Game = require('./models/game');
 const User = require('./models/user');
 const GamePlayer = require('./models/game-player');
-const Comment = require('./models/comment');
+const Message = require('./models/message');
 
 const typeDefs = gql(mergeTypes(fileLoader(path.join(__dirname, './schema'))));
 const resolvers = mergeResolvers(fileLoader(path.join(__dirname, './resolvers')));
@@ -66,8 +66,8 @@ app.use(
 
 User.belongsToMany(Game, { through: GamePlayer });
 Game.belongsToMany(User, { constraints: true, through: GamePlayer , onDelete: 'CASCADE' });
-Comment.belongsTo(User, { constraints: true, onDelete: 'CASCADE' });
-Comment.belongsTo(Game, { constraints: true, onDelete: 'CASCADE' });
+Message.belongsTo(User, { constraints: true, onDelete: 'CASCADE' });
+Message.belongsTo(Game, { constraints: true, onDelete: 'CASCADE' });
 
 const server = createServer(app);
 

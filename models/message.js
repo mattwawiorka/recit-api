@@ -2,7 +2,7 @@ const Sequelize = require('sequelize');
 
 const sequelize = require('../util/db');
 
-const Comment = sequelize.define('comment', {
+const Message = sequelize.define('message', {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
@@ -12,7 +12,11 @@ const Comment = sequelize.define('comment', {
   content: {
     type: Sequelize.STRING,
     allowNull: false
+  },
+  author: {
+    type: Sequelize.STRING,
+    allowNull: false
   }
 });
 
-module.exports = Comment;
+module.exports = Message;
