@@ -1,4 +1,4 @@
-const { Op, fn, col, literal, where } = require('sequelize');
+const { Op } = require('sequelize');
 const Message = require('../models/message');
 const User = require('../models/user');
 const { PubSub } = require('graphql-subscriptions');

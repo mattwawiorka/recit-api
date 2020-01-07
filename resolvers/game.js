@@ -3,9 +3,12 @@ const Game = require('../models/game');
 const User = require('../models/user');
 const GamePlayer = require('../models/game-player');
 const validator = require('validator');
-const { PubSub } = require('graphql-subscriptions');
 const dateTool = require('../util/dateTool');
 const geolib = require('geolib');
+const { PubSub, withFilter } = require('apollo-server');
+// const { RedisPubSub } = require('graphql-redis-subscriptions');
+// const { PubSub } = require('graphql-subscriptions');
+// const pubsub = new RedisPubSub();
 
 const pubsub = new PubSub();
 
@@ -17,9 +20,25 @@ GAMES_PER_PAGE = 15;
 const resolvers = {
     Subscription: {
         gameAdded: {
-            subscribe: () => {
-                return pubsub.asyncIterator(GAME_ADDED)
-            }
+            subscribe: withFilter(
+                () => pubsub.asyncIterator(GAME_ADDED), 
+                (payload, variables) => {
+
+                    const p = {
+                        x: payload.gameAdded.node.location.coordinates[1],
+                        y: payload.gameAdded.node.location.coordinates[0]
+                    }
+                    const bb = {
+                        ix: variables.bounds[3],
+                        iy: variables.bounds[2],
+                        ax: variables.bounds[1],
+                        ay: variables.bounds[0] 
+                    }
+
+                    const withinBounds = ( bb.ix <= p.x && p.x <= bb.ax && bb.iy <= p.y && p.y <= bb.ay )
+                    return withinBounds && ((payload.gameAdded.node.dateTime < variables.cursor) || (variables.numGames < 15))
+                }
+            )
         },
         gameDeleted: {
             subscribe: () => {
@@ -272,13 +291,23 @@ const resolvers = {
                         userId: context.user
                     })
                 .then( gamePlayer => {
-                    pubsub.publish(GAME_ADDED, {
+                    const gameAdded = {
                         gameAdded: {
                             cursor: game.dataValues.dateTime,
                             distance: 1,
-                            node: game.dataValues
+                            node: {
+                                id: game.dataValues.id,
+                                title: game.dataValues.title,
+                                sport: game.dataValues.sport,
+                                venue: game.dataValues.venue,
+                                dateTime: game.dataValues.dateTime,
+                                location: game.dataValues.location,
+                                spots: game.dataValues.spots,
+                                players: game.dataValues.spots - 1
+                            }
                         }
-                    })
+                    };
+                    pubsub.publish(GAME_ADDED, gameAdded);
                     return game;
                 })
             })

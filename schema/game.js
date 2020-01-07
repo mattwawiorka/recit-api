@@ -78,7 +78,7 @@ const typeDef = `
     }
 
     type Subscription {
-        gameAdded: Edge
+        gameAdded(cursor: String, numGames: Int, bounds: [Float]): Edge
         gameDeleted: ID
     }
 `;
