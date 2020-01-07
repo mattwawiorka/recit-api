@@ -124,7 +124,8 @@ const resolvers = {
                 }
                 const token = jwt.sign(
                     {
-                        userId: user.id.toString()
+                        userId: user.id.toString(),
+                        userName: user.name
                     }, 
                     'secret', 
                     { expiresIn: '24h' }

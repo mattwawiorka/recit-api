@@ -42,6 +42,8 @@ const resolvers = {
     Query: {
         messages: (parent, args, context) => {
 
+            console.log(pubsub.ee.listenerCount('MESSAGE_ADDED'))
+
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
 
             let options = {
@@ -65,7 +67,7 @@ const resolvers = {
             return Message.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor;
-                result.rows.map(c => {
+                result.rows.map( (c, index) => {
                     edges.push({
                         node: {
                             id: c.id,
@@ -77,13 +79,17 @@ const resolvers = {
                         cursor: c.updatedAt,
                         isOwner: c.userId == context.user
                     }); 
+
+                    if (index === result.rows.length - 1) {
+                        endCursor = c.updatedAt;
+                    }
                 });
                 return {
                     totalCount: result.count,
                     edges: edges,
                     pageInfo: {
-                        endCursor: 1000000,
-                        hasNextPage: true
+                        endCursor: endCursor,
+                        hasNextPage: result.rows.length === GAMES_PER_PAGE
                     }
                 }
             }).catch(error => {

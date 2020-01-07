@@ -20,7 +20,6 @@ const resolvers = {
             subscribe: withFilter(
                 () => pubsub.asyncIterator(GAME_ADDED), 
                 (payload, variables) => {
-
                     const p = {
                         x: payload.gameAdded.node.location.coordinates[1],
                         y: payload.gameAdded.node.location.coordinates[0]
@@ -31,8 +30,8 @@ const resolvers = {
                         ax: variables.bounds[1],
                         ay: variables.bounds[0] 
                     }
-
                     const withinBounds = ( bb.ix <= p.x && p.x <= bb.ax && bb.iy <= p.y && p.y <= bb.ay )
+                    console.log(withinBounds)
                     return withinBounds && ((payload.gameAdded.node.dateTime < variables.cursor) || (variables.numGames < 15))
                 }
             )
@@ -49,6 +48,8 @@ const resolvers = {
     Query: {
         // Must SET GLOBAL sql_mode = '' in mysql for games feed to work 
         games: (parent, args, context) => {
+
+            console.log(pubsub.ee.listenerCount('GAME_ADDED'))
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
             let currentLoc = args.currentLoc ? args.currentLoc : [47.6062, 122.3321]
