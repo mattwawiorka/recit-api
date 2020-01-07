@@ -14,12 +14,13 @@ const resolvers = {
         },
         user: (parent, args) => {
             return User.findOne({
+                raw: true,
                 where: {
                     id: args.id
                 }
             })
             .then( user => {
-                return user.dataValues;
+                return user;
             }).catch(error => {
                 throw error;
             });

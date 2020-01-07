@@ -6,9 +6,6 @@ const validator = require('validator');
 const dateTool = require('../util/dateTool');
 const geolib = require('geolib');
 const { PubSub, withFilter } = require('apollo-server');
-// const { RedisPubSub } = require('graphql-redis-subscriptions');
-// const { PubSub } = require('graphql-subscriptions');
-// const pubsub = new RedisPubSub();
 
 const pubsub = new PubSub();
 
@@ -41,9 +38,12 @@ const resolvers = {
             )
         },
         gameDeleted: {
-            subscribe: () => {
-                return pubsub.asyncIterator(GAME_DELETED)
-            }
+            subscribe: withFilter(
+                () => pubsub.asyncIterator(GAME_DELETED), 
+                (payload, variables) => {
+                    return variables.loadedGames.includes(payload.gameDeleted);
+                }
+            )
         },
     },
     Query: {
@@ -192,6 +192,7 @@ const resolvers = {
         },
         players: (parent, args) => {
             return GamePlayer.findAll({
+                raw: true,
                 where: {
                     gameId: args.gameId
                 }
@@ -199,13 +200,14 @@ const resolvers = {
             .then( gamePlayers => {
                 return gamePlayers.map( p => {
                     return User.findOne({
+                        raw: true,
                         where: {
-                            id: p.dataValues.userId
+                            id: p.userId
                         }
                     })
                     .then( user => {
                         let player = {
-                            id: user.dataValues.id,
+                            id: user.id,
                             name: user.name,
                             role: p.role
                         };
@@ -490,7 +492,7 @@ const resolvers = {
             const errors = [];
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to join game' });
+                errors.push({ message: 'Must be logged in to leave game' });
             }
 
             return GamePlayer.findOne({
@@ -512,7 +514,7 @@ const resolvers = {
                         return { id: player.dataValues.id };
                     } 
                     else {
-                        errors.push({ message: 'Could not join game' });
+                        errors.push({ message: 'Could not leave game' });
                         throw error;
                     }
                 })

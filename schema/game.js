@@ -79,7 +79,7 @@ const typeDef = `
 
     type Subscription {
         gameAdded(cursor: String, numGames: Int, bounds: [Float]): Edge
-        gameDeleted: ID
+        gameDeleted(loadedGames: [ID]): ID
     }
 `;
 

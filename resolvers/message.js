@@ -41,7 +41,6 @@ const resolvers = {
     },
     Query: {
         messages: (parent, args, context) => {
-            console.log('running messages query')
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
 
