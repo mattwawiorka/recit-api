@@ -9,4 +9,6 @@ const sequelize = new Sequelize(db.database, db.user, db.password, {
   logging: true,
 });
 
+sequelize.query("SET GLOBAL sql_mode = ''", { raw: true });
+
 module.exports = sequelize;

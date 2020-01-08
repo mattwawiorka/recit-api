@@ -85,7 +85,7 @@ const resolvers = {
                 include: [{
                     model: User, attributes: []
                 }],
-                group: ['id', 'spots'],
+                group: ['id'],
             };
 
             if (args.sortOrder === "SPOTS") {
@@ -304,6 +304,8 @@ const resolvers = {
             let { title, dateTime, endDateTime, venue, address, coords, sport, spots, description, public } = args.gameInput;
             const errors = [];
 
+            console.log(args)
+
             const now = new Date();
             const d = new Date(dateTime);
             if (!endDateTime) {
@@ -315,20 +317,41 @@ const resolvers = {
             if (!context.isAuth) {
                 errors.push({ message: 'Must be logged in to create game' });
             }
-            if (!title || !dateTime || !venue || !address || !sport || !description || !spots) {
-                errors.push({ message: 'Please fill in all required fields' });
+            if (!title || !dateTime || !sport || !description || !spots) {
+                errors.push({ 
+                    message: 'Please fill in all required fields',
+                    field:  'all'
+                });
             }
-            else if ((spots < 1) || (spots > 32)) {
-                errors.push({ message: 'Number of players must be between 1-32' });
+            if (!address && !venue) {
+                errors.push({ 
+                    message: 'Please select a valid address',
+                    field: 'address' 
+                });
             }
-            else if (!validator.isLength(description, {min:undefined, max: 1000})) {
-                errors.push({ message: 'Description must be less than 1000 characters' });
+            if ((spots < 1) || (spots > 32)) {
+                errors.push({ 
+                    message: 'Number of players must be between 1-32',
+                    field: 'spots' 
+                });
             }
-            else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
-                errors.push({ message: 'Start date cannot be in the past' });
+            if (!validator.isLength(description, {min:undefined, max: 1000})) {
+                errors.push({ 
+                    message: 'Description must be less than 1000 characters',
+                    field: 'description' 
+                });
             }
-            else if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
-                errors.push({ message: 'End date cannot be before starting date' });
+            if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
+                errors.push({ 
+                    message: 'Start date cannot be in the past',
+                    field: 'date' 
+                });
+            }
+            if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
+                errors.push({ 
+                    message: 'End date cannot be before starting date',
+                    field: 'endDate' 
+                });
             }
 
             if (errors.length > 0) {
