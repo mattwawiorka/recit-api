@@ -234,6 +234,69 @@ const resolvers = {
             .catch(error => {
                 throw error;
             })
+        },
+        userGames: (parent, args, context) => {
+            const errors = [];
+
+            // if (!context.isAuth) {
+            //     errors.push({ message: "Must be logged in to view user's games" });
+            // } 
+
+            if (errors.length > 0) {
+                const error = new Error("Could not retrieve user's games");
+                error.data = errors;
+                error.code = 401;   
+                throw error;
+            }
+
+            let options = {
+                raw: true,
+                where: {}
+            }
+
+            if (args.user) {
+                options.where.userId = args.user
+            } else {
+                options.where.userId = context.user || 1
+            }
+
+            return GamePlayer.findAndCountAll(options)
+            .then( result => {
+                let edges = [], endCursor; 
+                return result.rows.map( (gamePlayer, index) => {
+                    return Game.findOne({
+                        raw: true,
+                        where: {
+                            id: gamePlayer.gameId 
+                        }
+                    })
+                    .then(game => {
+                        edges.push({
+                            cursor: game.dateTime,
+                            node: {
+                                id: game.id,
+                                title: game.title
+                            }
+                        });
+    
+                        if (index === result.rows.length - 1) {
+                            endCursor = game.dateTime;
+                        }
+
+                        return {
+                            totalCount: result.count,
+                            edges: edges,
+                            pageInfo: {
+                                endCursor: endCursor,
+                                hasNextPage: result.rows.length === GAMES_PER_PAGE
+                            }
+                        }
+                    }) 
+                })
+            })
+            .catch(error => {
+                throw error;
+            })
         }
     },
     Mutation: {

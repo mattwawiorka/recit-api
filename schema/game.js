@@ -66,6 +66,7 @@ const typeDef = `
         game(id: ID!): Game!
         players(gameId: ID!): [Player]
         host(gameId: ID!): ID
+        userGames(user: ID, cursor: String, pastGames: Boolean): GameFeed
     }
 
     type Mutation {
