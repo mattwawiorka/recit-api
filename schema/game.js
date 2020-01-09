@@ -28,6 +28,7 @@ const typeDef = `
         cursor: String
         distance: Float
         node: Game
+        role: Int
     }
     
     type PageInfo {
@@ -37,6 +38,7 @@ const typeDef = `
 
     type GameFeed {
         totalCount: Int
+        activeCount: Int
         edges: [Edge]
         pageInfo: PageInfo
     }

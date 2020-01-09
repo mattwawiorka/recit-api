@@ -128,7 +128,7 @@ const resolvers = {
                         userName: user.name
                     }, 
                     'secret', 
-                    { expiresIn: '24h' }
+                    // { expiresIn: '24h' }
                 );
                 console.log('logged in')
                 return { token: token, userId: user.id.toString() };

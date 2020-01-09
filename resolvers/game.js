@@ -238,6 +238,9 @@ const resolvers = {
         userGames: (parent, args, context) => {
             const errors = [];
 
+            let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
+            let direction, activeCount = 0;
+
             // if (!context.isAuth) {
             //     errors.push({ message: "Must be logged in to view user's games" });
             // } 
@@ -260,38 +263,51 @@ const resolvers = {
                 options.where.userId = context.user || 1
             }
 
+            if (args.pastGames) {
+                direction = {
+                    [Op.lt]: cursor
+                }
+            } else {
+                direction = {
+                    [Op.gt]: cursor
+                }
+            }
+
             return GamePlayer.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor; 
-                return result.rows.map( (gamePlayer, index) => {
+                return Promise.all( result.rows.map( (gamePlayer, index) => {
                     return Game.findOne({
                         raw: true,
                         where: {
-                            id: gamePlayer.gameId 
+                            id: gamePlayer.gameId, 
+                            dateTime: direction
                         }
                     })
                     .then(game => {
+                        if (!game) return
+                        activeCount++;
                         edges.push({
                             cursor: game.dateTime,
-                            node: {
-                                id: game.id,
-                                title: game.title
-                            }
+                            node: game,
+                            role: gamePlayer.role
                         });
     
                         if (index === result.rows.length - 1) {
                             endCursor = game.dateTime;
                         }
-
-                        return {
-                            totalCount: result.count,
-                            edges: edges,
-                            pageInfo: {
-                                endCursor: endCursor,
-                                hasNextPage: result.rows.length === GAMES_PER_PAGE
-                            }
-                        }
                     }) 
+                }))
+                .then(() => {
+                    return {
+                        totalCount: result.count,
+                        activeCount: activeCount,
+                        edges: edges,
+                        pageInfo: {
+                            endCursor: endCursor,
+                            hasNextPage: result.rows.length === GAMES_PER_PAGE
+                        }
+                    }
                 })
             })
             .catch(error => {
