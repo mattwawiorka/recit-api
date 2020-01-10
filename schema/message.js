@@ -6,8 +6,11 @@ const typeDef = `
         author: String
         userId: ID
         conversationId: ID
-        dateTime: String
         content: String
+        updatedAt: String
+        createdAt: String
+        type: Int
+        gameId: ID
     }
 
     type MessageEdge {
@@ -29,13 +32,14 @@ const typeDef = `
 
     type Query {
         messages(conversationId: ID, cursor: String): MessageFeed
+        inbox: MessageFeed
     }
 
     type Mutation {
         createMessage(messageInput: messageInput): Message
         updateMessage(id: ID!, content: String!): Message
         deleteMessage(id: ID!): Message
-        addToConversation(conversationId: ID!, userId: ID!): Message
+        addToConversation(conversationId: ID!, userId: ID!, gameId: ID): Boolean
     }
 
     type Subscription {

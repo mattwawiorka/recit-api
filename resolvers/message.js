@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const Message = require('../models/message');
 const User = require('../models/user');
+const Conversation = require('../models/conversation');
 const Participant = require('../models/participant');
 const { PubSub } = require('graphql-subscriptions');
 const { withFilter } = require('apollo-server');
@@ -64,21 +65,15 @@ const resolvers = {
             return Message.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor;
-                result.rows.map( (c, index) => {
+                result.rows.map( (comment, index) => {
                     edges.push({
-                        node: {
-                            id: c.id,
-                            author: c.author,
-                            userId: c.userId,
-                            dateTime: c.updatedAt,
-                            content: c.content
-                        },
-                        cursor: c.updatedAt,
-                        isOwner: c.userId == context.user
+                        node: comment,
+                        cursor: comment.updatedAt,
+                        isOwner: comment.userId == context.user
                     }); 
 
                     if (index === result.rows.length - 1) {
-                        endCursor = c.updatedAt;
+                        endCursor = comment.updatedAt;
                     }
                 });
                 return {
@@ -86,14 +81,68 @@ const resolvers = {
                     edges: edges,
                     pageInfo: {
                         endCursor: endCursor,
-                        hasNextPage: result.rows.length === GAMES_PER_PAGE
+                        hasNextPage: result.rows.length === MESSAGES_PER_PAGE
                     }
                 }
-            }).catch(error => {
+            })
+            .catch(error => {
+                console.log(error);
+            });
+        },
+        inbox: (parent, args, context) => {
+            let edges = [], endCursor;
+            
+            return Participant.findAll({
+                raw: true,
+                where: {
+                    userId: context.user
+                },
+                order: [ [ 'updatedAt', 'DESC' ]]
+            })
+            .then( participations => {
+                return Promise.all(participations.map( (p, index) => {
+                    return Conversation.findOne({
+                        where: {
+                            id: p.conversationId
+                        },
+                    })
+                    .then( conversation => {
+                        let messageOptions = {
+                            raw: true,
+                            limit: 1,
+                            where: {
+                                conversationId: conversation.id,
+                            },
+                            order: [ [ 'updatedAt', 'DESC' ]]
+                        };
+
+                        if (p.byInvite) {
+                            messageOptions.where.type = 3;
+                        }
+
+                        return Message.findAll(messageOptions)
+                        .then( message => {
+                            if (message.length > 0) edges.push({ node: message[0] });
+                        })
+                    })
+                }))
+                .then(() => {
+                    return {
+                        totalCount: 0,
+                        edges: edges,
+                        pageInfo: {
+                            endCursor: null,
+                            hasNextPage: false
+                        }
+                    }
+                }) 
+            })
+            .catch(error => {
                 console.log(error);
             });
         }
     },
+    
     Mutation: {
         createMessage: (parent, args, context) => {
             const errors = [];
@@ -118,14 +167,7 @@ const resolvers = {
             .then( message => {
                 pubsub.publish(MESSAGE_ADDED, {
                     messageAdded: {
-                        node: {
-                            id: message.dataValues.id,
-                            conversationId: args.messageInput.conversationId,
-                            author: context.userName,
-                            userId: context.user,
-                            content: message.dataValues.content,
-                            dateTime: message.dataValues.updatedAt
-                        },
+                        node: message.dataValues,
                         cursor: message.dataValues.updatedAt,
                     }
                 })
@@ -236,34 +278,47 @@ const resolvers = {
             })
         },
         addToConversation: (parent, args, context) => {
-            // const errors = [];
+            const errors = [];
 
-            // if (!context.isAuth) {
-            //     errors.push({ message: 'Must be logged in to delete message' });
-            // }
+            if (!context.isAuth) {
+                // errors.push({ message: 'Must be logged in to add user' });
+            }
 
-            // if (errors.length > 0) {
-            //     const error = new Error('Could not delete message');
-            //     error.data = errors;
-            //     error.code = 401;   
-            //     throw error;
-            // }
+            if (errors.length > 0) {
+                const error = new Error('Could not add user');
+                error.data = errors;
+                error.code = 401;   
+                throw error;
+            }
 
-            // return Participant.create({
-            //     userId: args.userId,
-
-            // })
-
-            return Message.create({
-                userId: context.user,
-                author: context.userName,
-                conversationId: args.messageInput.conversationId,
-                content: args.messageInput.content,
-                type: 3
+            return User.findOne({
+                where: {
+                    id: args.userId
+                }
             })
-            .then( message => {
-                return message;
+            .then( user => {
+                return Participant.create({
+                    userId: args.userId,
+                    conversationId: args.conversationId,
+                    byInvite: true
+                })
+                .then(() => {
+                    return Message.create({
+                        userId: 1,
+                        author: "Matt W",
+                        conversationId: args.conversationId,
+                        content: "Invited " + user.name,
+                        type: 3,
+                        gameId: args.gameId
+                    })
+                    .then( message => {
+                        if (message) return true;
+                    })
+                })
             })
+            .catch(error => {
+                console.log(error);
+            }) 
         }
     }
 }

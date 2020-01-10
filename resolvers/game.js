@@ -492,19 +492,40 @@ const resolvers = {
                 throw error;
             }
 
-            return Game.destroy({
+            return Game.findOne({
                 where: {
                     id: args.gameId
                 }
             })
-            .then( rowsDeleted => {
-                if (rowsDeleted === 1) {
-                    pubsub.publish(GAME_DELETED, {
-                        gameDeleted: args.gameId
-                    })
-                    return true;
-                }
-                return false;
+            .then( game => {
+                return Game.destroy({
+                    where: {
+                        id: game.id
+                    }
+                })
+                .then( rowsDeleted => {
+                    if (rowsDeleted === 1) {
+                        return Conversation.destroy({
+                            where: {
+                                id: game.conversationId
+                            }
+                        })
+                        .then( rowsDeleted => {
+                            if (rowsDeleted === 1) {
+                                pubsub.publish(GAME_DELETED, {
+                                    gameDeleted: args.gameId
+                                })
+                                return true;
+                            } else {
+                                errors.push({ message: 'Could not cancel game' });
+                                throw error;
+                            }
+                        }) 
+                    } else {
+                        errors.push({ message: 'Could not cancel game' });
+                        throw error;
+                    }
+                })
             })
             .catch(error => {
                 console.log(error);
@@ -537,11 +558,20 @@ const resolvers = {
             })
             .spread( (player, created) => {
                 if (created) {
-                    return Participant.create({
+                    return Participant.findOrCreate({
                         conversationId: args.conversationId,
                         userId: context.user
                     })
-                    .then(() => {
+                    .then( (participant, created) => {
+                        if (!created) {
+                            // Participation already from invite, update
+                            return participant.update({
+                                byInvite: false
+                            })
+                            .then( (player) => {
+                                return { id: player.dataValues.id };
+                            })
+                        }
                         return { id: player.dataValues.id };
                     })
                 }
