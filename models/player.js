@@ -2,7 +2,7 @@ const Sequelize = require('sequelize');
 
 const sequelize = require('../util/db');
 
-const GamePlayer = sequelize.define('gamePlayer', {
+const Player = sequelize.define('player', {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
@@ -24,4 +24,4 @@ const GamePlayer = sequelize.define('gamePlayer', {
  *      4 - Invited
  */
 
-module.exports = GamePlayer;
+module.exports = Player;

@@ -17,6 +17,7 @@ const typeDef = `
         playersInterest: [User]
         image: String
         public: Boolean
+        conversationId: ID
     }
 
     type Point {
@@ -26,7 +27,6 @@ const typeDef = `
 
     type Edge {
         cursor: String
-        distance: Float
         node: Game
         role: Int
     }
@@ -64,7 +64,7 @@ const typeDef = `
     }
 
     type Query {
-        games(cursor: String, sport: String, startDate: String, openSpots: String, userId: ID, currentLoc: [Float], bounds: [Float], sortOrder: String): GameFeed
+        games(cursor: String, sport: String, startDate: String, openSpots: String, bounds: [Float], sortOrder: String): GameFeed
         game(id: ID!): Game!
         players(gameId: ID!): [Player]
         host(gameId: ID!): ID
@@ -73,9 +73,9 @@ const typeDef = `
 
     type Mutation {
         createGame(gameInput: gameInput): Game
-        joinGame(gameId: ID!): Player
-        interestGame(gameId: ID!): Boolean
-        leaveGame(gameId: ID!): Player
+        joinGame(gameId: ID!, conversationId: ID!): Player
+        interestGame(gameId: ID!, conversationId: ID!): Boolean
+        leaveGame(gameId: ID!, conversationId: ID!): Boolean
         updateGame(id: ID!, gameInput: gameInput): Game
         deleteGame(gameId: ID!): Boolean
     }

@@ -14,8 +14,10 @@ const auth = require('./middleware/auth');
 const sequelize = require('./util/db');
 const Game = require('./models/game');
 const User = require('./models/user');
-const GamePlayer = require('./models/game-player');
+const Player = require('./models/player');
 const Message = require('./models/message');
+const Conversation = require('./models/conversation');
+const Participant = require('./models/participant');
 
 const typeDefs = gql(mergeTypes(fileLoader(path.join(__dirname, './schema'))));
 const resolvers = mergeResolvers(fileLoader(path.join(__dirname, './resolvers')));
@@ -52,6 +54,7 @@ app.use(
       graphiql: true,
       context: {
         user: req.userId,
+        userName: req.userName,
         isAuth: req.isAuth
       },
       customFormatErrorFn: error => ({
@@ -63,11 +66,13 @@ app.use(
   }),
 );
 
-
-User.belongsToMany(Game, { through: GamePlayer });
-Game.belongsToMany(User, { constraints: true, through: GamePlayer , onDelete: 'CASCADE' });
-Message.belongsTo(User, { constraints: true, onDelete: 'CASCADE' });
-Message.belongsTo(Game, { constraints: true, onDelete: 'CASCADE' });
+User.belongsToMany(Game, { through: Player });
+User.belongsToMany(Conversation, { through: Participant });
+Game.belongsToMany(User, { through: Player, constraints: true, onDelete: 'CASCADE' });
+Message.belongsTo(User, { constraints: true });
+Message.belongsTo(Conversation, { constraints: true, onDelete: 'CASCADE' });
+Conversation.hasOne(Game, { onDelete: 'CASCADE' });
+Conversation.belongsToMany(User, { through: Participant, constraints: true, onDelete: 'CASCADE' });
 
 const server = createServer(app);
 

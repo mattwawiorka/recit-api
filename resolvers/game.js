@@ -1,10 +1,11 @@
 const { Op, fn, col, literal, where } = require('sequelize');
 const Game = require('../models/game');
 const User = require('../models/user');
-const GamePlayer = require('../models/game-player');
+const Player = require('../models/player');
+const Conversation = require('../models/conversation');
+const Participant = require('../models/participant')
 const validator = require('validator');
 const dateTool = require('../util/dateTool');
-const geolib = require('geolib');
 const { PubSub, withFilter } = require('apollo-server');
 
 const pubsub = new PubSub();
@@ -31,7 +32,6 @@ const resolvers = {
                         ay: variables.bounds[0] 
                     }
                     const withinBounds = ( bb.ix <= p.x && p.x <= bb.ax && bb.iy <= p.y && p.y <= bb.ay )
-                    console.log(withinBounds)
                     return withinBounds && ((payload.gameAdded.node.dateTime < variables.cursor) || (variables.numGames < 15))
                 }
             )
@@ -50,9 +50,9 @@ const resolvers = {
         games: (parent, args, context) => {
 
             console.log(pubsub.ee.listenerCount('GAME_ADDED'))
+            console.log(args)
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
-            let currentLoc = args.currentLoc ? args.currentLoc : [47.6062, 122.3321]
             let sport = args.sport ? args.sport : "ALL"
             let startDate = args.startDate ? args.startDate : "ALL"
             let bounds = args.bounds.length !== 0 ? args.bounds : [47.7169839910907, -122.32040939782564, 47.54058537009015, -122.3709744021744]
@@ -154,10 +154,6 @@ const resolvers = {
                 result.rows.map( (game, index) => {
                     edges.push({
                         cursor: game.dateTime,
-                        distance: geolib.convertDistance(geolib.getDistance(
-                            { latitude: currentLoc[0], longitude: currentLoc[1] },
-                            { latitude: game.location.coordinates[0], longitude: game.location.coordinates[1] }
-                        ), 'mi'),
                         node: game
                     });
 
@@ -192,14 +188,14 @@ const resolvers = {
             });
         },
         players: (parent, args) => {
-            return GamePlayer.findAll({
+            return Player.findAll({
                 raw: true,
                 where: {
                     gameId: args.gameId
                 }
             })
-            .then( gamePlayers => {
-                return gamePlayers.map( p => {
+            .then( players => {
+                return players.map( p => {
                     return User.findOne({
                         raw: true,
                         where: {
@@ -221,7 +217,7 @@ const resolvers = {
             });
         },
         host: (parent, args) => {
-            return GamePlayer.findOne({
+            return Player.findOne({
                 raw: true,
                 where: {
                     gameId: args.gameId,
@@ -236,20 +232,14 @@ const resolvers = {
             })
         },
         userGames: (parent, args, context) => {
-            const errors = [];
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
             let direction, activeCount = 0;
 
-            // if (!context.isAuth) {
-            //     errors.push({ message: "Must be logged in to view user's games" });
-            // } 
+            if (!context.isAuth) return {
 
-            if (errors.length > 0) {
-                const error = new Error("Could not retrieve user's games");
-                error.data = errors;
-                error.code = 401;   
-                throw error;
+                edges: [],
+
             }
 
             let options = {
@@ -260,7 +250,7 @@ const resolvers = {
             if (args.user) {
                 options.where.userId = args.user
             } else {
-                options.where.userId = context.user || 1
+                options.where.userId = context.user
             }
 
             if (args.pastGames) {
@@ -273,14 +263,14 @@ const resolvers = {
                 }
             }
 
-            return GamePlayer.findAndCountAll(options)
+            return Player.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor; 
-                return Promise.all( result.rows.map( (gamePlayer, index) => {
+                return Promise.all( result.rows.map( (player, index) => {
                     return Game.findOne({
                         raw: true,
                         where: {
-                            id: gamePlayer.gameId, 
+                            id: player.gameId, 
                             dateTime: direction
                         }
                     })
@@ -290,7 +280,7 @@ const resolvers = {
                         edges.push({
                             cursor: game.dateTime,
                             node: game,
-                            role: gamePlayer.role
+                            role: player.role
                         });
     
                         if (index === result.rows.length - 1) {
@@ -319,8 +309,6 @@ const resolvers = {
         createGame: (parent, args, context) => {
             let { title, dateTime, endDateTime, venue, address, coords, sport, spots, description, public } = args.gameInput;
             const errors = [];
-
-            console.log(args)
 
             const now = new Date();
             const d = new Date(dateTime);
@@ -377,44 +365,54 @@ const resolvers = {
                 throw error;
             }
 
-            return Game.create({
-                title: title,
-                dateTime: dateTime,
-                endDateTime: endDateTime,
-                venue: venue,
-                address: address,
-                location: {type: 'Point', coordinates: coords},
-                sport: sport,
-                spots: spots,
-                description: description,
-                public: public
-            })
-            .then( game => {
-                return GamePlayer.create({
-                        role: 1,
-                        gameId: game.id,
-                        userId: context.user
-                    })
-                .then( gamePlayer => {
-                    const gameAdded = {
-                        gameAdded: {
-                            cursor: game.dataValues.dateTime,
-                            distance: 1,
-                            node: {
-                                id: game.dataValues.id,
-                                title: game.dataValues.title,
-                                sport: game.dataValues.sport,
-                                venue: game.dataValues.venue,
-                                dateTime: game.dataValues.dateTime,
-                                location: game.dataValues.location,
-                                spots: game.dataValues.spots,
-                                players: game.dataValues.spots - 1
-                            }
-                        }
-                    };
-                    pubsub.publish(GAME_ADDED, gameAdded);
-                    return game;
+            
+            return Conversation.create()
+            .then( conversation => {
+                return Game.create({
+                    title: title,
+                    dateTime: dateTime,
+                    endDateTime: endDateTime,
+                    venue: venue,
+                    address: address,
+                    location: {type: 'Point', coordinates: coords},
+                    sport: sport,
+                    spots: spots,
+                    description: description,
+                    public: public,
+                    conversationId: conversation.id
                 })
+                .then( game => {
+                    return Player.create({
+                            role: 1,
+                            gameId: game.id,
+                            userId: context.user
+                        })
+                    .then(() => {
+                        return Participant.create({
+                            conversationId: conversation.id,
+                            userId: context.user
+                        })
+                        .then(() => {
+                            const gameAdded = {
+                                gameAdded: {
+                                    cursor: game.dataValues.dateTime,
+                                    node: {
+                                        id: game.dataValues.id,
+                                        title: game.dataValues.title,
+                                        sport: game.dataValues.sport,
+                                        venue: game.dataValues.venue,
+                                        dateTime: game.dataValues.dateTime,
+                                        location: game.dataValues.location,
+                                        spots: game.dataValues.spots,
+                                        players: game.dataValues.spots - 1
+                                    }
+                                }
+                            };
+                            pubsub.publish(GAME_ADDED, gameAdded);
+                            return game;
+                        });
+                    });
+                });
             })
             .catch(error => {
                 throw error;
@@ -487,6 +485,13 @@ const resolvers = {
                 errors.push({ message: 'Must be logged in to cancel game' });
             }
 
+            if (errors.length > 0) {
+                const error = new Error('Could not cancel game');
+                error.data = errors;
+                error.code = 401;   
+                throw error;
+            }
+
             return Game.destroy({
                 where: {
                     id: args.gameId
@@ -512,7 +517,14 @@ const resolvers = {
                 errors.push({ message: 'Must be logged in to join game' });
             }
 
-            return GamePlayer.findOrCreate({
+            if (errors.length > 0) {
+                const error = new Error('Could not join game');
+                error.data = errors;
+                error.code = 401;   
+                throw error;
+            }
+
+            return Player.findOrCreate({
                 where: {
                     userId: context.user,
                     gameId: args.gameId
@@ -524,9 +536,14 @@ const resolvers = {
                 }
             })
             .spread( (player, created) => {
-                console.log(player)
                 if (created) {
-                    return { id: player.dataValues.id };
+                    return Participant.create({
+                        conversationId: args.conversationId,
+                        userId: context.user
+                    })
+                    .then(() => {
+                        return { id: player.dataValues.id };
+                    })
                 }
                 else if (!created & player.role === 3) {
                     // Interested now joining
@@ -548,44 +565,52 @@ const resolvers = {
             });
         },
         interestGame: (parent, args, context, req) => {
-            return User.findOne({
+            const errors = [];
+
+            if (!context.isAuth) {
+                errors.push({ message: 'Must be logged in to become interested in game' });
+            }
+
+            if (errors.length > 0) {
+                const error = new Error('Could not become interested in game');
+                error.data = errors;
+                error.code = 401;   
+                throw error;
+            }
+
+            return Player.findOrCreate({
                 where: {
-                    id: context.user
+                    userId: user.id,
+                    gameId: args.gameId
+                },
+                defaults: {
+                    role: 3,
+                    userId: user.id,
+                    gameId: args.gameId
                 }
             })
-            .then( user => {
-                if (!user) {
-                    console.log("No user");
+            .spread( (player, created) => {
+                if (created) {
+                    return Participant.create({
+                        conversationId: args.conversationId,
+                        userId: context.user
+                    })
+                    .then(() => {
+                        return true;
+                    }) 
+                }
+                else if (!created & player.role === 2) {
+                    // Joined now just interested
+                    return player.update({
+                        role: 3
+                    })
+                    .then( () => {
+                        return true
+                    })
+                }
+                else {
                     return false;
                 }
-                return GamePlayer.findOrCreate({
-                    where: {
-                        userId: user.id,
-                        gameId: args.gameId
-                    },
-                    defaults: {
-                        role: 3,
-                        userId: user.id,
-                        gameId: args.gameId
-                    }
-                })
-                .spread( (player, created) => {
-                    if (created) {
-                        return true;
-                    }
-                    else if (!created & player.role === 2) {
-                        // Joined now just interested
-                        return player.update({
-                            role: 3
-                        })
-                        .then( () => {
-                            return true
-                        })
-                    }
-                    else {
-                        return false;
-                    }
-                })
             })
             .catch(error => {
                 console.log(error);
@@ -598,23 +623,42 @@ const resolvers = {
                 errors.push({ message: 'Must be logged in to leave game' });
             }
 
-            return GamePlayer.findOne({
+            if (errors.length > 0) {
+                const error = new Error('Could not leave game');
+                error.data = errors;
+                error.code = 401;   
+                throw error;
+            }
+
+            return Player.findOne({
                 where: {
                     userId: context.user,
                     gameId: args.gameId
                 }
             })
-            .then( gamePlayer => {
-                const player = gamePlayer;
-                return GamePlayer.destroy({
+            .then( player => {
+                return Player.destroy({
                     where: {
-                        gameId: gamePlayer.gameId,
-                        userId: gamePlayer.userId
+                        gameId: player.gameId,
+                        userId: player.userId
                     }
                 })
                 .then( rowsDeleted => {
                     if (rowsDeleted === 1) {
-                        return { id: player.dataValues.id };
+                        return Participant.destroy({
+                            where: {
+                                conversationId: args.conversationId,
+                                userId: context.user
+                            }
+                        })
+                        .then( rowsDeleted => {
+                            if (rowsDeleted === 1) {
+                                return true;
+                            } else {
+                                errors.push({ message: 'Could not leave game' });
+                                throw error;
+                            }
+                        })
                     } 
                     else {
                         errors.push({ message: 'Could not leave game' });

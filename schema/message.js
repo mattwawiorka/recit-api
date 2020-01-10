@@ -4,8 +4,8 @@ const typeDef = `
     type Message {
         id: ID!
         author: String
-        user: ID
-        gameId: ID
+        userId: ID
+        conversationId: ID
         dateTime: String
         content: String
     }
@@ -23,25 +23,25 @@ const typeDef = `
     }
 
     input messageInput {
-        gameId: ID
-        convoId: ID
+        conversationId: ID
         content: String!
     }
 
     type Query {
-        messages(gameId: ID, messageId: ID, cursor: String): MessageFeed
+        messages(conversationId: ID, cursor: String): MessageFeed
     }
 
     type Mutation {
         createMessage(messageInput: messageInput): Message
         updateMessage(id: ID!, content: String!): Message
         deleteMessage(id: ID!): Message
+        addToConversation(conversationId: ID!, userId: ID!): Message
     }
 
     type Subscription {
-        messageAdded(gameId: ID!): MessageEdge
-        messageDeleted(gameId: ID!): MessageEdge
-        messageUpdated(gameId: ID!): MessageEdge
+        messageAdded(conversationId: ID!): MessageEdge
+        messageDeleted(conversationId: ID!): MessageEdge
+        messageUpdated(conversationId: ID!): MessageEdge
     }
 `;
 

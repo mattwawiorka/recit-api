@@ -125,13 +125,12 @@ const resolvers = {
                 const token = jwt.sign(
                     {
                         userId: user.id.toString(),
-                        userName: user.name
+                        userName: user.name.toString()
                     }, 
                     'secret', 
                     // { expiresIn: '24h' }
                 );
-                console.log('logged in')
-                return { token: token, userId: user.id.toString() };
+                return { token: token };
             }).catch(error => {
                throw error
             });
