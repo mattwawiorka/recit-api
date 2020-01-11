@@ -281,7 +281,7 @@ const resolvers = {
             const errors = [];
 
             if (!context.isAuth) {
-                // errors.push({ message: 'Must be logged in to add user' });
+                errors.push({ message: 'Must be logged in to add user' });
             }
 
             if (errors.length > 0) {
@@ -297,12 +297,28 @@ const resolvers = {
                 }
             })
             .then( user => {
-                return Participant.create({
-                    userId: args.userId,
-                    conversationId: args.conversationId,
-                    byInvite: true
+                return Participant.findOrCreate({
+                    where: {
+                        userId: args.userId,
+                        conversationId: args.conversationId,
+                        byInvite: true
+                    },
+                    defaults: {
+                        userId: args.userId,
+                        conversationId: args.conversationId,
+                        byInvite: true
+                    }
                 })
-                .then(() => {
+                .spread( (participant, created) => {
+                    console.log(participant, created)
+                    if (!created) {
+                        errors.push({ message: "User already invited" });
+                        const error = new Error('Could not add user');
+                        error.data = errors;
+                        error.code = 401;   
+                        throw error; 
+                    }
+
                     return Message.create({
                         userId: 1,
                         author: "Matt W",

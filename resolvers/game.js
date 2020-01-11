@@ -559,8 +559,14 @@ const resolvers = {
             .spread( (player, created) => {
                 if (created) {
                     return Participant.findOrCreate({
-                        conversationId: args.conversationId,
-                        userId: context.user
+                        where : {
+                            conversationId: args.conversationId,
+                            userId: context.user
+                        },
+                        defaults: {
+                            conversationId: args.conversationId,
+                            userId: context.user
+                        }
                     })
                     .then( (participant, created) => {
                         if (!created) {
