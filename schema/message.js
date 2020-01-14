@@ -17,6 +17,7 @@ const typeDef = `
         cursor: String
         isOwner: Boolean
         node: Message
+        conversation: String
     }
 
     type MessageFeed {
@@ -26,7 +27,8 @@ const typeDef = `
     }
 
     input messageInput {
-        conversationId: ID
+        conversationId: ID!
+        gameId: ID
         content: String!
     }
 

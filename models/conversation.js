@@ -12,6 +12,9 @@ const Conversation = sequelize.define('conversation',
       allowNull: false,
       primaryKey: true
     },
+    title: {
+      type: Sequelize.STRING
+    }
   },
     { hooks: {
         afterSave: (c) => {

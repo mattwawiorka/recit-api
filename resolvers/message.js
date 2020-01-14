@@ -91,11 +91,11 @@ const resolvers = {
         },
         inbox: (parent, args, context) => {
             let edges = [], endCursor;
-            
+
             return Participant.findAll({
                 raw: true,
                 where: {
-                    userId: context.user
+                    userId: context.user || 2
                 },
                 order: [ [ 'updatedAt', 'DESC' ]]
             })
@@ -117,7 +117,7 @@ const resolvers = {
                                         [Op.values]: [1,2,5]
                                     },
                                     userId: {
-                                        [Op.ne]: context.user
+                                        [Op.ne]: context.user || 2
                                     } 
                                 } 
                             },
@@ -134,7 +134,7 @@ const resolvers = {
 
                         return Message.findAll(messageOptions)
                         .then( message => {
-                            if (message.length > 0) edges.push({ node: message[0] });
+                            if (message.length > 0) edges.push({ node: message[0], conversation: conversation.title });
                         })
                     })
                 }))
@@ -173,6 +173,7 @@ const resolvers = {
             return Message.create({
                 userId: context.user,
                 conversationId: args.messageInput.conversationId,
+                gameId: args.messageInput.gameId,
                 author: context.userName,
                 content: args.messageInput.content
             })

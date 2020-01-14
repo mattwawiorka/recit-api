@@ -368,7 +368,7 @@ const resolvers = {
             }
 
             
-            return Conversation.create()
+            return Conversation.create({ title: title })
             .then( conversation => {
                 return Game.create({
                     title: title,
@@ -578,7 +578,7 @@ const resolvers = {
                             })
                             .then( (player) => {
                                 return Message.create({
-                                    content: "Joined game",
+                                    content: "joined game",
                                     author: context.userName,
                                     type: 4,
                                     gameId: args.gameId,
@@ -591,7 +591,7 @@ const resolvers = {
                             })
                         }
                         return Message.create({
-                            content: "Joined game",
+                            content: "joined",
                             author: context.userName,
                             type: 4,
                             gameId: args.gameId,
@@ -711,7 +711,17 @@ const resolvers = {
                         })
                         .then( rowsDeleted => {
                             if (rowsDeleted === 1) {
-                                return true;
+                                return Message.create({
+                                    content: "left",
+                                    author: context.userName,
+                                    type: 4,
+                                    gameId: args.gameId,
+                                    conversationId: args.conversationId,
+                                    userId: context.user
+                                })
+                                .then( (message) => {
+                                    return true;
+                                })
                             } else {
                                 errors.push({ message: 'Could not leave game' });
                                 throw error;
