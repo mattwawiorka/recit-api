@@ -29,7 +29,10 @@ const User = sequelize.define('user', {
   status : {
     type: Sequelize.STRING,
     defaultValue: "Let's Play!"
-  }
+  },
+  loginLocation: {
+    type: Sequelize.GEOMETRY('POINT', 4326)
+  },
 });
 
 module.exports = User;

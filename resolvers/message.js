@@ -112,12 +112,24 @@ const resolvers = {
                             limit: 1,
                             where: {
                                 conversationId: conversation.id,
+                                [Op.or]: {
+                                    type: {
+                                        [Op.values]: [1,2,5]
+                                    },
+                                    userId: {
+                                        [Op.ne]: context.user
+                                    } 
+                                } 
                             },
                             order: [ [ 'updatedAt', 'DESC' ]]
                         };
 
                         if (p.byInvite) {
                             messageOptions.where.type = 3;
+                        } else {
+                            messageOptions.where.type = {
+                                [Op.ne]: 3
+                            }
                         }
 
                         return Message.findAll(messageOptions)
@@ -301,7 +313,6 @@ const resolvers = {
                     where: {
                         userId: args.userId,
                         conversationId: args.conversationId,
-                        byInvite: true
                     },
                     defaults: {
                         userId: args.userId,
@@ -310,7 +321,6 @@ const resolvers = {
                     }
                 })
                 .spread( (participant, created) => {
-                    console.log(participant, created)
                     if (!created) {
                         errors.push({ message: "User already invited" });
                         const error = new Error('Could not add user');
@@ -328,6 +338,13 @@ const resolvers = {
                         gameId: args.gameId
                     })
                     .then( message => {
+                        pubsub.publish(MESSAGE_ADDED, {
+                            messageAdded: {
+                                node: message.dataValues,
+                                cursor: message.dataValues.updatedAt,
+                            }
+                        })
+
                         if (message) return true;
                     })
                 })

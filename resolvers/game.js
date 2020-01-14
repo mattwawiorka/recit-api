@@ -3,7 +3,8 @@ const Game = require('../models/game');
 const User = require('../models/user');
 const Player = require('../models/player');
 const Conversation = require('../models/conversation');
-const Participant = require('../models/participant')
+const Participant = require('../models/participant');
+const Message = require('../models/message');
 const validator = require('validator');
 const dateTool = require('../util/dateTool');
 const { PubSub, withFilter } = require('apollo-server');
@@ -12,6 +13,7 @@ const pubsub = new PubSub();
 
 const GAME_ADDED = 'GAME_ADDED';
 const GAME_DELETED = 'GAME_DELETED';
+const MESSAGE_ADDED = 'MESSAGE_ADDED';
 
 GAMES_PER_PAGE = 15;
 
@@ -374,7 +376,7 @@ const resolvers = {
                     endDateTime: endDateTime,
                     venue: venue,
                     address: address,
-                    location: {type: 'Point', coordinates: coords},
+                    location: { type: 'Point', coordinates: coords },
                     sport: sport,
                     spots: spots,
                     description: description,
@@ -568,17 +570,37 @@ const resolvers = {
                             userId: context.user
                         }
                     })
-                    .then( (participant, created) => {
+                    .spread( (participant, created) => {
                         if (!created) {
                             // Participation already from invite, update
                             return participant.update({
                                 byInvite: false
                             })
                             .then( (player) => {
-                                return { id: player.dataValues.id };
+                                return Message.create({
+                                    content: "Joined game",
+                                    author: context.userName,
+                                    type: 4,
+                                    gameId: args.gameId,
+                                    conversationId: args.conversationId,
+                                    userId: context.user
+                                })
+                                .then( (message) => {
+                                    return { id: player.dataValues.id };
+                                })
                             })
                         }
-                        return { id: player.dataValues.id };
+                        return Message.create({
+                            content: "Joined game",
+                            author: context.userName,
+                            type: 4,
+                            gameId: args.gameId,
+                            conversationId: args.conversationId,
+                            userId: context.user
+                        })
+                        .then( (message) => {
+                            return { id: player.dataValues.id };
+                        })
                     })
                 }
                 else if (!created & player.role === 3) {

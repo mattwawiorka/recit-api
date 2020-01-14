@@ -1,3 +1,4 @@
+const { Op, fn, col, literal } = require('sequelize');
 const User = require('../models/user');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
@@ -25,6 +26,38 @@ const resolvers = {
                 throw error;
             });
         },
+        findUser: (parent, args, context) => {
+
+            let options = {
+                where: {
+                    name: {
+                        [Op.like]: '%' + args.name + '%'
+                    },
+                    id : {
+                        [Op.ne]: context.user
+                    }
+                },
+                limit: 15,
+                attributes: {}
+            }
+
+            if (args.location) {
+                options.attributes.include = [
+                    [
+                        fn(
+                          'ST_Distance',
+                          col('loginLocation'),
+                          fn('Point', args.location[0], args.location[1])
+                        ),
+                        'distance'
+                    ]
+                ];
+
+                options.order = literal('distance ASC');
+            }
+
+            return User.findAll(options);
+        }
     },
     Mutation: {
         createUser: (parent, args) => {
@@ -122,15 +155,19 @@ const resolvers = {
                     error.code = 401;
                     throw error;
                 }
-                const token = jwt.sign(
-                    {
-                        userId: user.id.toString(),
-                        userName: user.name.toString()
-                    }, 
-                    'secret', 
-                    // { expiresIn: '24h' }
-                );
-                return { token: token };
+
+                return user.update({ loginLocation: { type: 'Point', coordinates: args.location } })
+                .then(() => {
+                    const token = jwt.sign(
+                        {
+                            userId: user.id.toString(),
+                            userName: user.name.toString()
+                        }, 
+                        'secret', 
+                        // { expiresIn: '24h' }
+                    );
+                    return { token: token };
+                })
             }).catch(error => {
                throw error
             });
