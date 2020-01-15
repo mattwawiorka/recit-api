@@ -42,6 +42,7 @@ const resolvers = {
         },
     },
     Query: {
+        // Get messages, no notifications
         messages: (parent, args, context) => {
 
             console.log(pubsub.ee.listenerCount('MESSAGE_ADDED'))
@@ -54,6 +55,9 @@ const resolvers = {
                     conversationId: args.conversationId,
                     updatedAt: {
                         [Op.lt]: cursor
+                    },
+                    type: {
+                        [Op.ne]: 4
                     }
                 },
                 limit: MESSAGES_PER_PAGE,

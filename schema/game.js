@@ -44,7 +44,7 @@ const typeDef = `
     }
 
     type Player {
-        id: ID!
+        userId: ID!
         name: String
         role: Int
     }
@@ -67,7 +67,7 @@ const typeDef = `
         games(cursor: String, sport: String, startDate: String, openSpots: String, bounds: [Float], sortOrder: String): GameFeed
         game(id: ID!): Game!
         players(gameId: ID!): [Player]
-        host(gameId: ID!): ID
+        host(gameId: ID!): Player
         userGames(user: ID, cursor: String, pastGames: Boolean): GameFeed
     }
 
@@ -75,7 +75,7 @@ const typeDef = `
         createGame(gameInput: gameInput): Game
         joinGame(gameId: ID!, conversationId: ID!): Player
         interestGame(gameId: ID!, conversationId: ID!): Boolean
-        leaveGame(gameId: ID!, conversationId: ID!): Boolean
+        leaveGame(gameId: ID!, conversationId: ID!): Player
         updateGame(id: ID!, gameInput: gameInput): Game
         deleteGame(gameId: ID!): Boolean
     }
@@ -83,6 +83,8 @@ const typeDef = `
     type Subscription {
         gameAdded(cursor: String, numGames: Int, bounds: [Float]): Edge
         gameDeleted(loadedGames: [ID]): ID
+        playerJoined(gameId: ID!): Player
+        playerLeft(gameId: ID!): Player
     }
 `;
 
