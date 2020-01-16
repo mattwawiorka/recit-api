@@ -40,8 +40,8 @@ const Message = sequelize.define('message',
 
 /**
  * Type:
- *      1 - Message
- *      2 - Comment
+ *      1 - Comment
+ *      2 - Chat
  *      3 - Game Invite
  *      4 - Notification
  *      5 - Broadcast

@@ -105,7 +105,7 @@ const resolvers = {
                 include: [{
                     model: User, attributes: []
                 }],
-                group: ['id'],
+                group: ['id', 'spots'],
             };
 
             if (args.sortOrder === "SPOTS") {
@@ -554,7 +554,6 @@ const resolvers = {
             });
         },
         joinGame: (parent, args, context) => {
-            console.log('player joined game');
 
             const errors = [];
 
@@ -645,7 +644,8 @@ const resolvers = {
                         })
                     })
                 }
-                else if (!created & player.role === 3) {
+                else if (!created && p.role === 3) {
+                    console.log(p)
                     // Interested now joining
                     return p.update({
                         role: 2
@@ -665,7 +665,10 @@ const resolvers = {
                     })
                 }
                 else {
-                    errors.push({ message: 'Could not join game' });
+                    if (p.role === 2) errors.push({ message: 'Already joined' });
+                    const error = new Error('Could not join game');
+                    error.data = errors;
+                    error.code = 401;   
                     throw error;
                 }
             })

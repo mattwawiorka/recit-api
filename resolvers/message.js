@@ -104,6 +104,7 @@ const resolvers = {
                 order: [ [ 'updatedAt', 'DESC' ]]
             })
             .then( participations => {
+                console.log(participations)
                 return Promise.all(participations.map( (p, index) => {
                     return Conversation.findOne({
                         where: {
@@ -111,11 +112,12 @@ const resolvers = {
                         },
                     })
                     .then( conversation => {
+                        console.log(conversation.dataValues)
                         let messageOptions = {
                             raw: true,
                             limit: 1,
                             where: {
-                                conversationId: conversation.id,
+                                conversationId: conversation.dataValues.id,
                                 [Op.or]: {
                                     type: {
                                         [Op.values]: [1,2,5]
@@ -138,14 +140,23 @@ const resolvers = {
 
                         return Message.findAll(messageOptions)
                         .then( message => {
-                            if (message.length > 0) edges.push({ node: message[0], conversation: conversation.title });
+                            if (message.length > 0) edges.push({ node: message[0], conversation: conversation.title, forGame: Boolean(message[0].gameId) });
                         })
                     })
                 }))
                 .then(() => {
+                    sortedEdges = edges.sort( (a,b) => {
+                        let comparison;
+                        if (a.node.updatedAt < b.node.updatedAt) {
+                            comparison = 1;
+                        } else {
+                            comparison = -1;
+                        }
+                        return comparison;
+                    });
                     return {
                         totalCount: 0,
-                        edges: edges,
+                        edges: sortedEdges,
                         pageInfo: {
                             endCursor: null,
                             hasNextPage: false
@@ -326,6 +337,7 @@ const resolvers = {
                     }
                 })
                 .spread( (participant, created) => {
+
                     if (!created) {
                         errors.push({ message: "User already invited" });
                         const error = new Error('Could not add user');
@@ -335,8 +347,8 @@ const resolvers = {
                     }
 
                     return Message.create({
-                        userId: 1,
-                        author: "Matt W",
+                        userId: context.user,
+                        author: context.userName,
                         conversationId: args.conversationId,
                         content: "Invited " + user.name,
                         type: 3,

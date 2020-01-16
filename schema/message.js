@@ -18,6 +18,7 @@ const typeDef = `
         isOwner: Boolean
         node: Message
         conversation: String
+        forGame: Boolean
     }
 
     type MessageFeed {
