@@ -104,7 +104,6 @@ const resolvers = {
                 order: [ [ 'updatedAt', 'DESC' ]]
             })
             .then( participations => {
-                console.log(participations)
                 return Promise.all(participations.map( (p, index) => {
                     return Conversation.findOne({
                         where: {
@@ -112,7 +111,6 @@ const resolvers = {
                         },
                     })
                     .then( conversation => {
-                        console.log(conversation.dataValues)
                         let messageOptions = {
                             raw: true,
                             limit: 1,

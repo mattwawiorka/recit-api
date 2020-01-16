@@ -51,7 +51,6 @@ const resolvers = {
             subscribe: withFilter(
                 () => pubsub.asyncIterator(PLAYER_JOINED),
                 (payload, variables) => {
-                    console.log(variables.gameId === payload.gameId);
                     return variables.gameId === payload.gameId;
                 }
             )
@@ -60,14 +59,14 @@ const resolvers = {
             subscribe: withFilter(
                 () => pubsub.asyncIterator(PLAYER_LEFT),
                 (payload, variables) => {
-                    console.log(variables.gameId === payload.gameId);
                     return variables.gameId === payload.gameId;
                 }
             )
         }
     },
     Query: {
-        // Must SET GLOBAL sql_mode = '' in mysql for games feed to work 
+        // Get games feed for your area 
+        // sql_mode = '' for games feed to work 
         games: (parent, args, context) => {
 
             console.log(pubsub.ee.listenerCount('GAME_ADDED'))
@@ -195,6 +194,7 @@ const resolvers = {
                 throw error;
             });
         },
+        // Get game info for game page
         game: (parent, args) => {
             return Game.findOne({
                 where: {
@@ -202,13 +202,19 @@ const resolvers = {
                 }
             })
             .then( game => {
+                if (!game) {
+                    const error = new Error('Could not find game');
+                    throw error;
+                }
+
                 return game;
             }).catch(error => {
+                console.log(error)
                 throw error;
             });
         },
+        // Get players for game
         players: (parent, args) => {
-            console.log('get players');
 
             return Player.findAll({
                 raw: true,
@@ -225,8 +231,13 @@ const resolvers = {
                         }
                     })
                     .then( user => {
+                        if (!user) {
+                            const error = new Error('There is no user associated with this player');
+                            throw error;
+                        }
+
                         let player = {
-                            userId: user.id, // Graphql layer player id = user id
+                            userId: user.id, 
                             name: user.name,
                             role: p.role
                         };
@@ -235,9 +246,11 @@ const resolvers = {
                 })
             })
             .catch(error => {
+                console.log(error)
                 throw error;
             });
         },
+        // Get host for a game
         host: (parent, args) => {
             return Player.findOne({
                 raw: true,
@@ -247,21 +260,26 @@ const resolvers = {
                 }
             })
             .then(host => {
+                if (!host) {
+                    const error = new Error('Could not find host');
+                    throw error;
+                }
+
                 return { userId: host.userId };
             })
             .catch(error => {
+                console.log(error)
                 throw error;
             })
         },
+        // Get user specific game feed, can be used for getting upcoming games or past games (game history)
         userGames: (parent, args, context) => {
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
             let direction, activeCount = 0;
 
             if (!context.isAuth) return {
-
                 edges: [],
-
             }
 
             let options = {
@@ -269,12 +287,14 @@ const resolvers = {
                 where: {}
             }
 
+            // Default = get current users games 
             if (args.user) {
                 options.where.userId = args.user
             } else {
                 options.where.userId = context.user
             }
 
+            // Default direction = future
             if (args.pastGames) {
                 direction = {
                     [Op.lt]: cursor
@@ -298,7 +318,9 @@ const resolvers = {
                     })
                     .then(game => {
                         if (!game) return
+
                         activeCount++;
+
                         edges.push({
                             cursor: game.dateTime,
                             node: game,
@@ -323,6 +345,7 @@ const resolvers = {
                 })
             })
             .catch(error => {
+                console.log(error)
                 throw error;
             })
         }
@@ -355,13 +378,13 @@ const resolvers = {
                     field: 'address' 
                 });
             }
-            if ((spots < 1) || (spots > 32)) {
+            if ((spots < 2) || (spots > 32)) {
                 errors.push({ 
-                    message: 'Number of players must be between 1-32',
+                    message: 'Number of players must be between 2-32',
                     field: 'spots' 
                 });
             }
-            if (!validator.isLength(description, {min:undefined, max: 1000})) {
+            if (!validator.isLength(description, { min:undefined, max: 1000 })) {
                 errors.push({ 
                     message: 'Description must be less than 1000 characters',
                     field: 'description' 
@@ -387,7 +410,7 @@ const resolvers = {
                 throw error;
             }
 
-            
+            // Each game gets a corresponding conversation
             return Conversation.create({ title: title })
             .then( conversation => {
                 return Game.create({
@@ -404,12 +427,14 @@ const resolvers = {
                     conversationId: conversation.id
                 })
                 .then( game => {
+                    // Create the host player
                     return Player.create({
-                            role: 1,
-                            gameId: game.id,
-                            userId: context.user
-                        })
+                        role: 1,
+                        gameId: game.id,
+                        userId: context.user
+                    })
                     .then(() => {
+                        // Add the host as a participant in the game conversation
                         return Participant.create({
                             conversationId: conversation.id,
                             userId: context.user
@@ -437,6 +462,7 @@ const resolvers = {
                 });
             })
             .catch(error => {
+                console.log(error)
                 throw error;
             });
         },
@@ -457,7 +483,7 @@ const resolvers = {
             else if ((spots < 1) || (spots > 32)) {
                 errors.push({ message: 'Number of players must be between 1-32' });
             }
-            else if (!validator.isLength(description, {min:undefined, max: 1000})) {
+            else if (!validator.isLength(description, { min:undefined, max: 1000 })) {
                 errors.push({ message: 'Description must be less than 1000 characters' });
             }
             else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
@@ -480,6 +506,11 @@ const resolvers = {
                 }
             }) 
             .then( game => {
+                if (!game) {
+                    const error = new Error('Could not find game');
+                    throw error;
+                }
+
                 return game.update({
                     title: title || game.title,
                     dateTime: dateTime || game.dateTime,
@@ -497,6 +528,7 @@ const resolvers = {
                 })
             })
             .catch(error => {
+                console.log(error)
                 throw error;
             });          
         },
@@ -520,6 +552,11 @@ const resolvers = {
                 }
             })
             .then( game => {
+                if (!game) {
+                    const error = new Error('Could not find game');
+                    throw error;
+                }
+
                 return Game.destroy({
                     where: {
                         id: game.id
@@ -527,6 +564,7 @@ const resolvers = {
                 })
                 .then( rowsDeleted => {
                     if (rowsDeleted === 1) {
+                        // Also deleted the corresponding conversation
                         return Conversation.destroy({
                             where: {
                                 id: game.conversationId
@@ -539,22 +577,22 @@ const resolvers = {
                                 })
                                 return true;
                             } else {
-                                errors.push({ message: 'Could not cancel game' });
+                                const error = new Error('Could not cancel game');
                                 throw error;
                             }
                         }) 
                     } else {
-                        errors.push({ message: 'Could not cancel game' });
+                        const error = new Error('Could not cancel game');
                         throw error;
                     }
                 })
             })
             .catch(error => {
                 console.log(error);
+                throw error;
             });
         },
         joinGame: (parent, args, context) => {
-
             const errors = [];
 
             if (!context.isAuth) {
@@ -621,6 +659,7 @@ const resolvers = {
                                 })
                             })
                         }
+                        // Player and conversation participant created
                         return Message.create({
                             content: "joined",
                             author: context.userName,
@@ -644,24 +683,33 @@ const resolvers = {
                         })
                     })
                 }
+                // Interested now joining
                 else if (!created && p.role === 3) {
-                    console.log(p)
-                    // Interested now joining
                     return p.update({
                         role: 2
                     })
                     .then( (p) => {
-                        let player = {
-                            userId: context.user,
-                            name: context.userName,
-                            role: p.dataValues.role
-                        };
-
-                        pubsub.publish(PLAYER_JOINED, {
-                            playerJoined: player, gameId: args.gameId
+                        return Message.create({
+                            content: "joined",
+                            author: context.userName,
+                            type: 4,
+                            gameId: args.gameId,
+                            conversationId: args.conversationId,
+                            userId: context.user
                         })
-
-                        return player;
+                        .then(() => {
+                            let player = {
+                                userId: context.user,
+                                name: context.userName,
+                                role: p.dataValues.role
+                            };
+    
+                            pubsub.publish(PLAYER_JOINED, {
+                                playerJoined: player, gameId: args.gameId
+                            })
+    
+                            return player;
+                        })
                     })
                 }
                 else {
@@ -681,11 +729,11 @@ const resolvers = {
             const errors = [];
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to become interested in game' });
+                errors.push({ message: 'Must be logged in to subscribe to game' });
             }
 
             if (errors.length > 0) {
-                const error = new Error('Could not become interested in game');
+                const error = new Error('Could not subscribe to game');
                 error.data = errors;
                 error.code = 401;   
                 throw error;
@@ -704,12 +752,28 @@ const resolvers = {
             })
             .spread( (player, created) => {
                 if (created) {
-                    return Participant.create({
-                        conversationId: args.conversationId,
-                        userId: context.user
+                    return Participant.findOrCreate({
+                        where: {
+                            conversationId: args.conversationId,
+                            userId: context.user
+                        },
+                        defaults: {
+                            conversationId: args.conversationId,
+                            userId: context.user
+                        }
                     })
-                    .then(() => {
-                        return true;
+                    .then( (participant, created) => {
+                        if (created) {
+                            return true
+                        }
+                        
+                        // Already was a participant by invite, now subscribed
+                        return participant.update({
+                            byInvite: false
+                        })
+                        .then(() => {
+                            return true;
+                        })
                     }) 
                 }
                 else if (!created & player.role === 2) {
@@ -727,11 +791,10 @@ const resolvers = {
             })
             .catch(error => {
                 console.log(error);
+                throw error;
             });
         },
         leaveGame: (parent, args, context, req) => {
-            console.log('player left game');
-
             const errors = [];
 
             if (!context.isAuth) {
@@ -752,14 +815,14 @@ const resolvers = {
                 }
             })
             .then( player => {
-                return Player.destroy({
-                    where: {
-                        gameId: player.gameId,
-                        userId: player.userId
-                    }
-                })
-                .then( rowsDeleted => {
-                    if (rowsDeleted === 1) {
+                if (!player) {
+                    const error = new Error('Could not leave game');
+                    throw error;
+                }
+
+                return player.destroy()
+                .then( result => {
+                    if (result) {
                         return Participant.destroy({
                             where: {
                                 conversationId: args.conversationId,
@@ -784,19 +847,20 @@ const resolvers = {
                                     return { userId: context.user }
                                 })
                             } else {
-                                errors.push({ message: 'Could not leave game' });
+                                const error = new Error('Could not leave game');
                                 throw error;
                             }
                         })
                     } 
                     else {
-                        errors.push({ message: 'Could not leave game' });
+                        const error = new Error('Could not leave game');
                         throw error;
                     }
                 })
             })
             .catch(error => {
                 console.log(error);
+                throw error;
             });
         }
     }

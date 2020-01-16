@@ -26,7 +26,9 @@ const Message = sequelize.define('message',
       defaultValue: "1"
     },
   },
-  { hooks: {
+  { 
+    hooks: {
+      // After adding a new message to a conversation, update the updatedAt col to reflect it 
       afterCreate: (m) => {
         Conversation.findOne({ where: { id: m.dataValues.conversationId } })
         .then( c => {
@@ -34,7 +36,12 @@ const Message = sequelize.define('message',
           c.update({ updatedAt: Date.now() });
         })
       }
-    }
+    },
+    indexes: [
+      {
+        fields: ['updatedAt']
+      }
+    ]
   }
 );
 

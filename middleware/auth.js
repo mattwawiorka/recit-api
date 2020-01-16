@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 
+// Set context with authorization header
 module.exports = (req, res, next) => {
   const authHeader = req.get('Authorization');
   if (!authHeader) {

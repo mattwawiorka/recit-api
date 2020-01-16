@@ -2,19 +2,21 @@ const Sequelize = require('sequelize');
 
 const sequelize = require('../util/db');
 
-const Player = sequelize.define('player', {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    allowNull: false,
-    primaryKey: true
-  },
-  role: {
-    type: Sequelize.INTEGER,
-    allowNull: false,
-    defaultValue: "1"
+const Player = sequelize.define('player', 
+  {
+    id: {
+      type: Sequelize.INTEGER,
+      autoIncrement: true,
+      allowNull: false,
+      primaryKey: true
+    },
+    role: {
+      type: Sequelize.INTEGER,
+      allowNull: false,
+      defaultValue: "1"
+    }
   }
-});
+);
 
 /**
  * Role:
