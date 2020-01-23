@@ -9,6 +9,9 @@ const { makeExecutableSchema } = require('graphql-tools');
 const { gql } = require('apollo-server');
 const graphqlHTTP = require('express-graphql');
 
+// const { createServer } = require('https');
+// const fs = require('fs');
+
 const auth = require('./middleware/auth');
 
 const sequelize = require('./util/db');
@@ -39,6 +42,7 @@ app.use((req, res, next) => {
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
     }
+
     next();
 });
 
@@ -65,6 +69,7 @@ app.use(
     } 
   }),
 );
+
 
 User.belongsToMany(Game, { through: Player, constraints: true, onDelete: 'CASCADE' });
 User.belongsToMany(Conversation, { through: Participant, constraints: true, onDelete: 'CASCADE' });

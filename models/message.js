@@ -24,7 +24,7 @@ const Message = sequelize.define('message',
       type: Sequelize.INTEGER,
       allowNull: false,
       defaultValue: "1"
-    },
+    }
   },
   { 
     hooks: {
@@ -33,7 +33,7 @@ const Message = sequelize.define('message',
         Conversation.findOne({ where: { id: m.dataValues.conversationId } })
         .then( c => {
           c.changed('updatedAt', true);
-          c.update({ updatedAt: Date.now() });
+          c.update({ updatedAt: Date.now(), updatedBy: m.dataValues.userId });
         })
       }
     },

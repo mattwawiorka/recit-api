@@ -14,6 +14,9 @@ const Conversation = sequelize.define('conversation',
     },
     title: {
       type: Sequelize.STRING
+    },
+    updatedBy: {
+      type: Sequelize.INTEGER
     }
   },
   { 
@@ -24,7 +27,7 @@ const Conversation = sequelize.define('conversation',
         .then( result => {
           result.map( p => {
             p.changed('updatedAt', true);
-            p.update({ updatedAt: Date.now() });
+            p.update({ updatedAt: Date.now(), hasUpdate: (c.updatedBy != p.userId) });
           })
         })
       }

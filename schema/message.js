@@ -19,6 +19,7 @@ const typeDef = `
         node: Message
         conversation: String
         forGame: Boolean
+        isNew: Boolean
     }
 
     type MessageFeed {
@@ -36,6 +37,7 @@ const typeDef = `
     type Query {
         messages(conversationId: ID, cursor: String): MessageFeed
         inbox: MessageFeed
+        notifications: Int
     }
 
     type Mutation {
@@ -49,6 +51,7 @@ const typeDef = `
         messageAdded(conversationId: ID!): MessageEdge
         messageDeleted(conversationId: ID!): MessageEdge
         messageUpdated(conversationId: ID!): MessageEdge
+        notificationMessage(userId: ID): Boolean
     }
 `;
 

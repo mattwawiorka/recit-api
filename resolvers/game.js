@@ -15,6 +15,7 @@ const GAME_ADDED = 'GAME_ADDED';
 const GAME_DELETED = 'GAME_DELETED';
 const PLAYER_JOINED = 'PLAYER_JOINED';
 const PLAYER_LEFT = 'PLAYER_LEFT';
+const NOTIFICATION = 'NOTIFICATION';
 
 GAMES_PER_PAGE = 15;
 
@@ -62,6 +63,25 @@ const resolvers = {
                     return variables.gameId === payload.gameId;
                 }
             )
+        },
+        notificationGame: {
+            subscribe: withFilter(
+                () => pubsub.asyncIterator(NOTIFICATION),
+                (payload, variables) => {
+                    if (payload.currentUser === variables.userId) return false;
+                    console.log('send notification');
+                    return Player.findOne({
+                        raw: true,
+                        where: {
+                            gameId: payload.gameId,
+                            userId: variables.userId
+                        }
+                    })
+                    .then( result => {
+                        if (result) return true;
+                    })
+                }
+            )
         }
     },
     Query: {
@@ -74,7 +94,7 @@ const resolvers = {
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
             let sport = args.sport ? args.sport : "ALL"
             let startDate = args.startDate ? args.startDate : "ALL"
-            let bounds = args.bounds.length !== 0 ? args.bounds : [47.7169839910907, -122.32040939782564, 47.54058537009015, -122.3709744021744]
+            let bounds = (args.bounds[0]) ? args.bounds : [47.7169839910907, -122.32040939782564, 47.54058537009015, -122.3709744021744];
 
             const polygon = `POLYGON((${bounds[0].toString()}  ${bounds[1].toString()}, ${bounds[0].toString()}  ${bounds[3].toString()}, ${bounds[2].toString()}  ${bounds[3].toString()}, ${bounds[2].toString()}  ${bounds[1].toString()}, ${bounds[0].toString()}  ${bounds[1].toString()}))`;
 
@@ -483,7 +503,7 @@ const resolvers = {
             else if ((spots < 1) || (spots > 32)) {
                 errors.push({ message: 'Number of players must be between 1-32' });
             }
-            else if (!validator.isLength(description, { min:undefined, max: 1000 })) {
+            else if (!validator.isLength(description, { min: undefined, max: 1000 })) {
                 errors.push({ message: 'Description must be less than 1000 characters' });
             }
             else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
@@ -653,7 +673,11 @@ const resolvers = {
 
                                     pubsub.publish(PLAYER_JOINED, {
                                         playerJoined: player, gameId: args.gameId
-                                    })
+                                    });
+
+                                    pubsub.publish(NOTIFICATION, { 
+                                        gameId: args.gameId, currentUser: context.user
+                                    });
 
                                     return player;
                                 })
@@ -677,7 +701,11 @@ const resolvers = {
 
                             pubsub.publish(PLAYER_JOINED, {
                                 playerJoined: player, gameId: args.gameId
-                            })
+                            });
+
+                            pubsub.publish(NOTIFICATION, { 
+                                gameId: args.gameId, currentUser: context.user
+                            });
 
                             return player;
                         })
@@ -706,7 +734,11 @@ const resolvers = {
     
                             pubsub.publish(PLAYER_JOINED, {
                                 playerJoined: player, gameId: args.gameId
-                            })
+                            });
+
+                            pubsub.publish(NOTIFICATION, { 
+                                gameId: args.gameId, currentUser: context.user
+                            });
     
                             return player;
                         })
@@ -842,6 +874,10 @@ const resolvers = {
                                 .then(() => {
                                     pubsub.publish(PLAYER_LEFT, {
                                         playerLeft: { userId: context.user }, gameId: args.gameId
+                                    });
+
+                                    pubsub.publish(NOTIFICATION, { 
+                                        gameId: args.gameId, currentUser: context.user
                                     });
 
                                     return { userId: context.user }

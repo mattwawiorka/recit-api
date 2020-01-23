@@ -12,6 +12,10 @@ const Participant = sequelize.define('participant',
     },
     byInvite: {
       type: Sequelize.BOOLEAN
+    },
+    hasUpdate: {
+      type: Sequelize.BOOLEAN,
+      defaultValue: true
     }
   },
   {

@@ -85,6 +85,7 @@ const typeDef = `
         gameDeleted(loadedGames: [ID]): ID
         playerJoined(gameId: ID!): Player
         playerLeft(gameId: ID!): Player
+        notificationGame(userId: ID): Boolean
     }
 `;
 

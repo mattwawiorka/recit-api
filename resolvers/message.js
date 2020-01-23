@@ -3,6 +3,7 @@ const Message = require('../models/message');
 const User = require('../models/user');
 const Conversation = require('../models/conversation');
 const Participant = require('../models/participant');
+const Player = require('../models/player');
 const { PubSub } = require('graphql-subscriptions');
 const { withFilter } = require('apollo-server');
 
@@ -11,6 +12,7 @@ const pubsub = new PubSub();
 const MESSAGE_ADDED = 'MESSAGE_ADDED';
 const MESSAGE_UPDATED = 'MESSAGE_UPDATED';
 const MESSAGE_DELETED = 'MESSAGE_DELETED';
+const NOTIFICATION = 'NOTIFICATION';
 
 MESSAGES_PER_PAGE = 15;
 
@@ -40,9 +42,28 @@ const resolvers = {
                 }
             )
         },
+        notificationMessage: {
+            subscribe: withFilter(
+                () => pubsub.asyncIterator(NOTIFICATION),
+                (payload, variables) => {
+                    if (payload.currentUser === variables.userId) return false;
+                    console.log('send notification');
+                    return Player.findOne({
+                        raw: true,
+                        where: {
+                            gameId: payload.gameId,
+                            userId: variables.userId
+                        }
+                    })
+                    .then( result => {
+                        if (result) return true;
+                    })
+                }
+            )
+        }
     },
     Query: {
-        // Get messages, no notifications
+        // Given a conversation get its messages, no notifications
         messages: (parent, args, context) => {
 
             console.log(pubsub.ee.listenerCount('MESSAGE_ADDED'))
@@ -56,9 +77,10 @@ const resolvers = {
                     updatedAt: {
                         [Op.lt]: cursor
                     },
-                    type: {
-                        [Op.ne]: 4
-                    }
+                    // Should joining/leaving notifications be shown?
+                    // type: {
+                    //     [Op.ne]: 4
+                    // }
                 },
                 limit: MESSAGES_PER_PAGE,
                 order: [
@@ -69,15 +91,15 @@ const resolvers = {
             return Message.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor;
-                result.rows.map( (comment, index) => {
+                result.rows.map( (message, index) => {
                     edges.push({
-                        node: comment,
-                        cursor: comment.updatedAt,
-                        isOwner: comment.userId == context.user
+                        node: message,
+                        cursor: message.updatedAt,
+                        isOwner: message.userId == context.user
                     }); 
 
                     if (index === result.rows.length - 1) {
-                        endCursor = comment.updatedAt;
+                        endCursor = message.updatedAt;
                     }
                 });
                 return {
@@ -91,15 +113,18 @@ const resolvers = {
             })
             .catch(error => {
                 console.log(error);
+                throw error;
             });
         },
+        // Get the most recent, pertinent message for user for each of the users conversations they are participated in
         inbox: (parent, args, context) => {
             let edges = [], endCursor;
 
+            console.log('inbox')
+
             return Participant.findAll({
-                raw: true,
                 where: {
-                    userId: context.user || 2
+                    userId: context.user
                 },
                 order: [ [ 'updatedAt', 'DESC' ]]
             })
@@ -121,9 +146,9 @@ const resolvers = {
                                         [Op.values]: [1,2,5]
                                     },
                                     userId: {
-                                        [Op.ne]: context.user || 2
+                                        [Op.ne]: context.user
                                     } 
-                                } 
+                                }
                             },
                             order: [ [ 'updatedAt', 'DESC' ]]
                         };
@@ -138,7 +163,18 @@ const resolvers = {
 
                         return Message.findAll(messageOptions)
                         .then( message => {
-                            if (message.length > 0) edges.push({ node: message[0], conversation: conversation.title, forGame: Boolean(message[0].gameId) });
+                            if (message.length > 0) {
+                                edges.push(
+                                    { 
+                                        node: message[0], 
+                                        conversation: conversation.title, 
+                                        forGame: Boolean(message[0].gameId),
+                                        isNew: p.hasUpdate 
+                                    }
+                                );
+                            }
+
+                            return p.update({ hasUpdate: false })
                         })
                     })
                 }))
@@ -164,10 +200,18 @@ const resolvers = {
             })
             .catch(error => {
                 console.log(error);
+                throw error;
             });
+        },
+        notifications: (parent, args, context) => {
+            return Participant.count({
+                where: {
+                    userId: context.user,
+                    hasUpdate: true
+                }
+            })
         }
     },
-    
     Mutation: {
         createMessage: (parent, args, context) => {
             const errors = [];
@@ -197,6 +241,11 @@ const resolvers = {
                         cursor: message.dataValues.updatedAt,
                     }
                 })
+
+                pubsub.publish(NOTIFICATION, { 
+                    gameId: args.messageInput.gameId, currentUser: context.user
+                });
+
                 return {
                     id: message.dataValues.id,
                     author: message.dataValues.author,
@@ -205,6 +254,7 @@ const resolvers = {
             })
             .catch(error => {
                 console.log(error);
+                throw error;
             })
         },
         updateMessage: (parent, args, context) => {
@@ -249,6 +299,7 @@ const resolvers = {
             })
             .catch(error => {
                 console.log(error);
+                throw error;
             });
         },
         deleteMessage: (parent, args, context) => {
@@ -266,7 +317,7 @@ const resolvers = {
             }
 
             return Message.findOne({
-                raw: true,
+                // raw: true,
                 where: {
                     id: args.id
                 }
@@ -274,33 +325,28 @@ const resolvers = {
             .then( message => {
                 const id = message.id;
                 const conversationId = message.conversationId;
-                return Message.destroy({
-                    where: {
-                        id: id
-                    }
-                })
-                .then( rowsDeleted => {
-                    if (rowsDeleted === 1) {
+                return message.destroy()
+                .then( message => {
+                    if (message) {
                         pubsub.publish(MESSAGE_DELETED, {
                             messageDeleted: 
                             {
                                 node: {
-                                    id: id,
-                                    conversationId: conversationId
+                                    id: message.id,
+                                    conversationId: message.conversationId
                                 }
                             }
                         })
-                        return { id: id };
+                        return { id: message.id };
                     } else {
                         const error = new Error('Could not delete message');
-                        error.data = errors;
-                        error.code = 401;   
                         throw error;
                     }
                 })
             })
             .catch(error => {
                 console.log(error);
+                throw error;
             })
         },
         addToConversation: (parent, args, context) => {
