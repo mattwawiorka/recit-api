@@ -11,6 +11,7 @@ const typeDef = `
         status: String
         createdAt: String
         loginLocation: [Float]
+        profilePic: String
     }
 
     type AuthData {
@@ -25,6 +26,7 @@ const typeDef = `
         age: Int
         gender: String
         status: String
+        profilePic: String
     }
 
     type Query {

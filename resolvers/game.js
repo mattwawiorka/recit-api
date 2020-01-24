@@ -259,7 +259,8 @@ const resolvers = {
                         let player = {
                             userId: user.id, 
                             name: user.name,
-                            role: p.role
+                            role: p.role,
+                            profilePic: user.profilePic
                         };
                         return player;
                     })
@@ -457,7 +458,8 @@ const resolvers = {
                         // Add the host as a participant in the game conversation
                         return Participant.create({
                             conversationId: conversation.id,
-                            userId: context.user
+                            userId: context.user,
+                            hasUpdate: false
                         })
                         .then(() => {
                             const gameAdded = {

@@ -6,11 +6,12 @@ const { SubscriptionServer } = require('subscriptions-transport-ws');
 const bodyParser = require('body-parser');
 const path = require('path');
 const { makeExecutableSchema } = require('graphql-tools');
-const { gql } = require('apollo-server');
 const graphqlHTTP = require('express-graphql');
+const cors = require('cors');
+const fs = require('fs');
+const multer = require('multer');
 
 // const { createServer } = require('https');
-// const fs = require('fs');
 
 const auth = require('./middleware/auth');
 
@@ -22,7 +23,7 @@ const Message = require('./models/message');
 const Conversation = require('./models/conversation');
 const Participant = require('./models/participant');
 
-const typeDefs = gql(mergeTypes(fileLoader(path.join(__dirname, './schema'))));
+const typeDefs = mergeTypes(fileLoader(path.join(__dirname, './schema')));
 const resolvers = mergeResolvers(fileLoader(path.join(__dirname, './resolvers')));
 
 const schema = makeExecutableSchema({
@@ -31,6 +32,33 @@ const schema = makeExecutableSchema({
 });
 
 const app = express();
+
+app.use(cors());
+
+const fileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'images');
+  },
+  filename: (req, file, cb) => {
+    console.log(file.mimetype)
+    cb(null, 'profile_' + req.userId + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (
+    file.mimetype === 'image/png' ||
+    file.mimetype === 'image/jpg' ||
+    file.mimetype === 'image/jpeg'
+  ) {
+    cb(null, true);
+  } else {
+    cb(null, false);
+  }
+};
+
+const upload = multer({ storage: fileStorage, fileFilter: fileFilter }).single('file');
+app.use('/images', express.static(path.join(__dirname, 'images')));
 
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -48,6 +76,22 @@ app.use((req, res, next) => {
 
 // Set authorization context before performing resolver commands 
 app.use(auth);
+
+app.post('/post-image', (req, res) => {
+  if (!req.isAuth) {
+    throw new Error('Not authenticated!');
+  }
+
+  fs.unlink('profile_' + req.userId + '.jpg', err => console.log(err));
+  fs.unlink('profile_' + req.userId + '.png', err => console.log(err));
+  
+  upload(req, res, (err) => {
+    if (err) {
+      return res.status(500).json(err)
+    }
+    return res.status(200).send(req.body)
+  })
+});
 
 app.use(
   '/graphql',

@@ -47,6 +47,7 @@ const typeDef = `
         userId: ID!
         name: String
         role: Int
+        profilePic: String
     }
 
     input gameInput {

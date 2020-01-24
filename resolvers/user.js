@@ -113,7 +113,8 @@ const resolvers = {
                     password: args.userInput.password || user.password,
                     age: args.userInput.age || user.age,
                     gender: args.userInput.gender || user.gender,
-                    status: args.userInput.status || user.status
+                    status: args.userInput.status || user.status,
+                    profilePic: args.userInput.profilePic || user.profilePic
                 })
             })
             .then( result => {

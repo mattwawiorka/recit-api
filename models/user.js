@@ -27,9 +27,13 @@ const User = sequelize.define('user',
     gender: {
       type: Sequelize.STRING
     },
-    status : {
+    status: {
       type: Sequelize.STRING,
       defaultValue: "Let's Play!"
+    },
+    profilePic: {
+      type: Sequelize.STRING,
+      defaultValue: 'profile-blank.png'
     },
     loginLocation: {
       type: Sequelize.GEOMETRY('POINT', 4326)

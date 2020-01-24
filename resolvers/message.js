@@ -4,8 +4,7 @@ const User = require('../models/user');
 const Conversation = require('../models/conversation');
 const Participant = require('../models/participant');
 const Player = require('../models/player');
-const { PubSub } = require('graphql-subscriptions');
-const { withFilter } = require('apollo-server');
+const { PubSub, withFilter } = require('apollo-server');
 
 const pubsub = new PubSub();
 
