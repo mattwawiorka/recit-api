@@ -14,6 +14,9 @@ const User = sequelize.define('user',
       type: Sequelize.STRING,
       allowNull: false
     },
+    userName: {
+      type: Sequelize.STRING
+    },
     phoneNumber: {
       type: Sequelize.STRING
     },
@@ -21,8 +24,8 @@ const User = sequelize.define('user',
       type: Sequelize.STRING,
       allowNull: false
     },
-    age: {
-      type: Sequelize.INTEGER   
+    dob: {
+      type: Sequelize.DATE  
     },
     gender: {
       type: Sequelize.STRING
@@ -38,6 +41,9 @@ const User = sequelize.define('user',
     loginLocation: {
       type: Sequelize.GEOMETRY('POINT', 4326)
     },
+    city: {
+      type: Sequelize.STRING
+    }
   }
 );
 

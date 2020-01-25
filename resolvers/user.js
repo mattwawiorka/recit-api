@@ -21,6 +21,7 @@ const resolvers = {
                 }
             })
             .then( user => {
+                console.log(user)
                 return user;
             }).catch(error => {
                 throw error;
@@ -61,11 +62,11 @@ const resolvers = {
     },
     Mutation: {
         createUser: (parent, args) => {
-            const { name, phoneNumber, password, age, gender } = args.userInput;
+            const { name, phoneNumber, password, dob, gender } = args.userInput;
             const errors = [];
             const namePattern = /^[a-z0-9\s]+$/i;
 
-            if (!name || !password || !phoneNumber || !age || !gender) {
+            if (!name || !password || !phoneNumber || !dob || !gender) {
                 errors.push({ message: 'Please fill in all required fields' });
             }
             else if (!namePattern.test(name)) {
@@ -74,9 +75,9 @@ const resolvers = {
             else if (!validator.isLength(password, {min:6, max: undefined})) {
                 errors.push({ message: 'Password must be at least 6 characters' });
             }
-            else if ((age < 1) || (age > 120)) {
-                errors.push({ message: 'Please let other players know your age' });
-            }
+            // else if ((dob < 1) || (dob > 120)) {
+            //     errors.push({ message: 'Please let other players know your age' });
+            // }
             else if (validator.isEmpty(gender)) {
                 errors.push({ message: 'Please let other players know your preferred gender' });
             }
@@ -90,7 +91,7 @@ const resolvers = {
                 name: args.userInput.name,
                 password: args.userInput.password,
                 phoneNumber: args.userInput.phoneNumber, 
-                age: args.userInput.age,
+                dob: args.userInput.dob,
                 gender: args.userInput.gender
             })
             .then( user => {
@@ -102,6 +103,7 @@ const resolvers = {
             });
         },
         updateUser: (parent, args) => {
+            console.log(args)
             return User.findOne({
                 where: {
                     id: args.id
@@ -110,8 +112,9 @@ const resolvers = {
             .then( user => {
                 return user.update({
                     name: args.userInput.name || user.name,
+                    userName: args.userInput.userName || user.userName,
                     password: args.userInput.password || user.password,
-                    age: args.userInput.age || user.age,
+                    dob: args.userInput.dob || user.dob,
                     gender: args.userInput.gender || user.gender,
                     status: args.userInput.status || user.status,
                     profilePic: args.userInput.profilePic || user.profilePic
@@ -142,6 +145,7 @@ const resolvers = {
             });
         },
         login: (parent, args) => {
+            console.log(args)
             const errors = [];
             return User.findOne({
                 where: {
@@ -157,7 +161,7 @@ const resolvers = {
                     throw error;
                 }
 
-                return user.update({ loginLocation: { type: 'Point', coordinates: args.location } })
+                return user.update({ loginLocation: { type: 'Point', coordinates: args.location }, city: args.city })
                 .then(() => {
                     const token = jwt.sign(
                         {

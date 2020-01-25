@@ -4,14 +4,16 @@ const typeDef = `
     type User {
         id: ID!
         name: String!
+        userName: String
         phoneNumber: String
         password: String
-        age: Int
+        dob: String
         gender: String
         status: String
         createdAt: String
-        loginLocation: [Float]
         profilePic: String
+        loginLocation: Point
+        city: String
     }
 
     type AuthData {
@@ -21,9 +23,10 @@ const typeDef = `
 
     input userInput {
         name: String
+        userName: String
         phoneNumber: String
         password: String
-        age: Int
+        dob: String
         gender: String
         status: String
         profilePic: String
@@ -39,7 +42,7 @@ const typeDef = `
         createUser(userInput: userInput): User
         updateUser(id: ID!, userInput: userInput): User
         deleteUser(id: ID!): Boolean
-        login(name: String!, password: String!, location: [Float]): AuthData
+        login(name: String!, password: String!, location: [Float], city: String): AuthData
     }
 `;
 

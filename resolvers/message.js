@@ -403,7 +403,7 @@ const resolvers = {
                                 node: message.dataValues,
                                 cursor: message.dataValues.updatedAt,
                             }
-                        })
+                        });
 
                         if (message) return true;
                     })
