@@ -46,11 +46,10 @@ const resolvers = {
                 () => pubsub.asyncIterator(NOTIFICATION),
                 (payload, variables) => {
                     if (payload.currentUser === variables.userId) return false;
-                    console.log('send notification');
-                    return Player.findOne({
+                    return Participant.findOne({
                         raw: true,
                         where: {
-                            gameId: payload.gameId,
+                            conversationId: payload.conversationId,
                             userId: variables.userId
                         }
                     })
@@ -242,7 +241,7 @@ const resolvers = {
                 })
 
                 pubsub.publish(NOTIFICATION, { 
-                    gameId: args.messageInput.gameId, currentUser: context.user
+                    conversationId: args.messageInput.conversationId, currentUser: context.user
                 });
 
                 return {
@@ -398,14 +397,20 @@ const resolvers = {
                         gameId: args.gameId
                     })
                     .then( message => {
-                        pubsub.publish(MESSAGE_ADDED, {
-                            messageAdded: {
-                                node: message.dataValues,
-                                cursor: message.dataValues.updatedAt,
-                            }
-                        });
+                        if (message) {
+                            pubsub.publish(MESSAGE_ADDED, {
+                                messageAdded: {
+                                    node: message.dataValues,
+                                    cursor: message.dataValues.updatedAt,
+                                }
+                            });
+    
+                            pubsub.publish(NOTIFICATION, { 
+                                conversationId: args.conversationId, currentUser: context.user
+                            });
 
-                        if (message) return true;
+                            return true
+                        }
                     })
                 })
             })

@@ -295,79 +295,68 @@ const resolvers = {
         },
         // Get user specific game feed, can be used for getting upcoming games or past games (game history)
         userGames: (parent, args, context) => {
-
+            console.log(args)
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
-            let direction, activeCount = 0;
+            let direction, limit;
 
             if (!context.isAuth) return {
                 edges: [],
-            }
-
-            let options = {
-                raw: true,
-                where: {}
-            }
-
-            // Default = get current users games 
-            if (args.user) {
-                options.where.userId = args.user
-            } else {
-                options.where.userId = context.user
             }
 
             // Default direction = future
             if (args.pastGames) {
                 direction = {
                     [Op.lt]: cursor
-                }
+                };
+                limit = GAMES_PER_PAGE;
             } else {
                 direction = {
                     [Op.gt]: cursor
-                }
+                };
+
+                // Only preview the first 3 of your upcoming games at a time 
+                limit = 3;
             }
 
-            return Player.findAndCountAll(options)
-            .then( result => {
-                let edges = [], endCursor; 
-                return Promise.all( result.rows.map( (player, index) => {
-                    return Game.findOne({
-                        raw: true,
+            let options = {
+                where: {
+                    userId: args.userId || context.user
+                },
+                include: [
+                    {
+                        model: Game,
                         where: {
-                            id: player.gameId, 
                             dateTime: direction
                         }
-                    })
-                    .then(game => {
-                        if (!game) return
+                    }
+                ],
+                limit: limit
+            }
+            
+            return Player.findAndCountAll(options)
+            .then( result => {
+                console.log(result.count)
+                let edges = [], endCursor;
+                result.rows.map( (player, index) => {
+                    edges.push({
+                        node: player.game,
+                        cursor: player.game.dateTime,
+                        role: player.role
+                    });
 
-                        activeCount++;
-
-                        edges.push({
-                            cursor: game.dateTime,
-                            node: game,
-                            role: player.role
-                        });
-    
-                        if (index === result.rows.length - 1) {
-                            endCursor = game.dateTime;
-                        }
-                    }) 
-                }))
-                .then(() => {
-                    return {
-                        totalCount: result.count,
-                        activeCount: activeCount,
-                        edges: edges,
-                        pageInfo: {
-                            endCursor: endCursor,
-                            hasNextPage: result.rows.length === GAMES_PER_PAGE
-                        }
+                    if (index === result.rows.length - 1) {
+                        endCursor = player.game.dateTime;
                     }
                 })
-            })
-            .catch(error => {
-                console.log(error)
-                throw error;
+
+                return {
+                    totalCount: result.count,
+                    edges: edges,
+                    pageInfo: {
+                        endCursor: endCursor,
+                        hasNextPage: result.count > limit
+                    }
+                };
             })
         }
     },

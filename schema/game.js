@@ -38,7 +38,6 @@ const typeDef = `
 
     type GameFeed {
         totalCount: Int
-        activeCount: Int
         edges: [Edge]
         pageInfo: PageInfo
     }
@@ -69,7 +68,7 @@ const typeDef = `
         game(id: ID!): Game!
         players(gameId: ID!): [Player]
         host(gameId: ID!): Player
-        userGames(user: ID, cursor: String, pastGames: Boolean): GameFeed
+        userGames(userId: ID, cursor: String, pastGames: Boolean): GameFeed
     }
 
     type Mutation {

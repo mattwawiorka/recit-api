@@ -17,7 +17,7 @@ const resolvers = {
             return User.findOne({
                 raw: true,
                 where: {
-                    id: args.id
+                    id: args.userId
                 }
             })
             .then( user => {

@@ -34,7 +34,7 @@ const typeDef = `
 
     type Query {
         users: [User!]!
-        user(id: ID!): User!
+        user(userId: ID!): User!
         findUser(name: String!, location: [Float]): [User]
     }
 
