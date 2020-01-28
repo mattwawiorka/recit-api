@@ -89,7 +89,7 @@ const resolvers = {
         // sql_mode = '' for games feed to work 
         games: (parent, args, context) => {
 
-            console.log(pubsub.ee.listenerCount('GAME_ADDED'))
+            console.log('games query',pubsub.ee.listenerCount('GAME_ADDED'))
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
             let sport = args.sport ? args.sport : "ALL"
@@ -189,6 +189,7 @@ const resolvers = {
             // Find all games not in the past
             return Game.findAndCountAll(options)
             .then( result => {
+                console.log('count',result.count.length)
                 let edges = [], endCursor; 
                 result.rows.map( (game, index) => {
                     edges.push({
@@ -205,7 +206,7 @@ const resolvers = {
                     edges: edges,
                     pageInfo: {
                         endCursor: endCursor,
-                        hasNextPage: result.rows.length === GAMES_PER_PAGE
+                        hasNextPage: result.count.length > GAMES_PER_PAGE
                     }
                 }
             })
@@ -295,9 +296,8 @@ const resolvers = {
         },
         // Get user specific game feed, can be used for getting upcoming games or past games (game history)
         userGames: (parent, args, context) => {
-            console.log(args)
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
-            let direction, limit;
+            let direction, order, limit;
 
             if (!context.isAuth) return {
                 edges: [],
@@ -308,11 +308,17 @@ const resolvers = {
                 direction = {
                     [Op.lt]: cursor
                 };
+                order = [
+                    [literal('game.dateTime'), 'DESC']
+                ];
                 limit = GAMES_PER_PAGE;
             } else {
                 direction = {
                     [Op.gt]: cursor
                 };
+                order = [
+                    [literal('game.dateTime'), 'ASC']
+                ];
 
                 // Only preview the first 3 of your upcoming games at a time 
                 limit = 3;
@@ -330,12 +336,12 @@ const resolvers = {
                         }
                     }
                 ],
-                limit: limit
+                limit: limit,
+                order: order
             }
             
             return Player.findAndCountAll(options)
             .then( result => {
-                console.log(result.count)
                 let edges = [], endCursor;
                 result.rows.map( (player, index) => {
                     edges.push({
@@ -357,6 +363,40 @@ const resolvers = {
                         hasNextPage: result.count > limit
                     }
                 };
+            })
+        },
+        topSport: (parent, args, context) => {
+            return Player.count({
+                where : {
+                    userId: args.userId
+                },
+                include: [
+                    {
+                        model: Game,
+                        attributes: ['sport'],
+                        where: {
+                            dateTime: {
+                                [Op.lt]: Date.now()
+                            }
+                        }
+                    }
+                ],
+                group: [literal('game.sport')]
+            })
+            .then(result => {
+                let count = 0, top;
+                result.map( (sport, index) => {
+                    if (sport.count > count) {
+                        count = sport.count;
+                        top = index;
+                    }
+                })
+                if (result.length > 0) {
+                    return result[top].sport
+                } else {
+                    return 'TBD'
+                }
+                
             })
         }
     },

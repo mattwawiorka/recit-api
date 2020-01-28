@@ -37,11 +37,10 @@ app.use(cors());
 
 const fileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'images');
+    cb(null, 'images/' + req.userId);
   },
   filename: (req, file, cb) => {
-    console.log(file.mimetype)
-    cb(null, 'profile_' + req.userId + path.extname(file.originalname));
+    cb(null, file.originalname);
   }
 });
 
@@ -57,7 +56,8 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage: fileStorage, fileFilter: fileFilter }).single('file');
+const upload = multer({ storage: fileStorage, fileFilter: fileFilter }).array('file');
+
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
 app.use((req, res, next) => {
@@ -82,8 +82,11 @@ app.post('/post-image', (req, res) => {
     throw new Error('Not authenticated!');
   }
 
-  fs.unlink('profile_' + req.userId + '.jpg', err => console.log(err));
-  fs.unlink('profile_' + req.userId + '.png', err => console.log(err));
+  let dir =  __dirname + '/images/' + req.userId;
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+  } 
   
   upload(req, res, (err) => {
     if (err) {

@@ -12,6 +12,9 @@ const typeDef = `
         status: String
         createdAt: String
         profilePic: String
+        pic1: String
+        pic2: String
+        pic3: String
         loginLocation: Point
         city: String
     }
@@ -30,6 +33,9 @@ const typeDef = `
         gender: String
         status: String
         profilePic: String
+        pic1: String
+        pic2: String
+        pic3: String
     }
 
     type Query {

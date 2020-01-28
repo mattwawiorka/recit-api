@@ -21,7 +21,6 @@ const resolvers = {
                 }
             })
             .then( user => {
-                console.log(user)
                 return user;
             }).catch(error => {
                 throw error;
@@ -103,7 +102,6 @@ const resolvers = {
             });
         },
         updateUser: (parent, args) => {
-            console.log(args)
             return User.findOne({
                 where: {
                     id: args.id
@@ -117,7 +115,10 @@ const resolvers = {
                     dob: args.userInput.dob || user.dob,
                     gender: args.userInput.gender || user.gender,
                     status: args.userInput.status || user.status,
-                    profilePic: args.userInput.profilePic || user.profilePic
+                    profilePic: args.userInput.profilePic || user.profilePic,
+                    pic1: args.userInput.pic1 || user.pic1,
+                    pic2: args.userInput.pic2 || user.pic2,
+                    pic3: args.userInput.pic3 || user.pic3
                 })
             })
             .then( result => {
