@@ -1,7 +1,8 @@
 const { Op, fn, col, literal } = require('sequelize');
 const User = require('../models/user');
 const jwt = require('jsonwebtoken');
-const validator = require('validator');
+const API = require('../api.json');
+const fetch = require('node-fetch');
 
 const resolvers = {
     Query: {
@@ -10,6 +11,7 @@ const resolvers = {
             .then( users => {
                 return users;
             }).catch(error => {
+                console.log(error);
                 throw error;
             });
         },
@@ -23,9 +25,11 @@ const resolvers = {
             .then( user => {
                 return user;
             }).catch(error => {
+                console.log(error);
                 throw error;
             });
         },
+        // User name search
         findUser: (parent, args, context) => {
 
             let options = {
@@ -60,58 +64,75 @@ const resolvers = {
         }
     },
     Mutation: {
-        createUser: (parent, args) => {
-            const { name, phoneNumber, password, dob, gender } = args.userInput;
+        // Create user from Facebook - no username for now
+        // May decide to implement username in the future for better player searching
+        createUserFb: (parent, args) => {
+            const { name, dob, gender, facebookId, facebookToken } = args.userInput;
             const errors = [];
-            const namePattern = /^[a-z0-9\s]+$/i;
 
-            if (!name || !password || !phoneNumber || !dob || !gender) {
-                errors.push({ message: 'Please fill in all required fields' });
-            }
-            else if (!namePattern.test(name)) {
-                errors.push({ message: 'Username an only contain letters and numbers' });
-            }
-            else if (!validator.isLength(password, {min:6, max: undefined})) {
-                errors.push({ message: 'Password must be at least 6 characters' });
-            }
-            // else if ((dob < 1) || (dob > 120)) {
-            //     errors.push({ message: 'Please let other players know your age' });
-            // }
-            else if (validator.isEmpty(gender)) {
-                errors.push({ message: 'Please let other players know your preferred gender' });
-            }
-            if (errors.length > 0) {
-                const error = new Error('Invalid input');
-                error.data = errors;
-                error.code = 401;   
-                throw error;
-            }
-            return User.create({
-                name: args.userInput.name,
-                password: args.userInput.password,
-                phoneNumber: args.userInput.phoneNumber, 
-                dob: args.userInput.dob,
-                gender: args.userInput.gender
-            })
-            .then( user => {
-                return user;
-            })
+            // Verify Facebook access token is valid for our app
+            return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${API.fbAppId}|${API.fbSecret}`)
+            .then(response => {
+                return response.json()
+                .then(response => {
+                    if (response.data.is_valid) {
+                        return User.findOrCreate({
+                            where: {
+                                facebookId: facebookId
+                            },
+                            defaults: {
+                                name: name,
+                                dob: dob,
+                                gender: gender,
+                                facebookId: facebookId
+                            }
+                        })
+                        .spread( (user, created) => {
+                            if (!created) {
+                                const error = new Error('User already exists');
+                                error.data = errors;
+                                error.code = 401;   
+                                throw error; 
+                            }
+
+                            // Use Facebook API to get higher quality version of users profile pic
+                            return fetch(`https://graph.facebook.com/${facebookId}/picture?height=720&width=720&access_token=${facebookToken}`)
+                            .then(response => {
+                                if (response.url) {
+                                    return user.update({ profilePic: response.url })
+                                    .then(user => {
+                                        return user;
+                                    })
+                                }
+                                return user;
+                            })   
+                        })
+                        .catch(error => {
+                            console.log(error)
+                            throw error;
+                        });
+                    } else {
+                        const error = new Error('Invalid Facebook access token');
+                        error.data = errors;
+                        error.code = 401;   
+                        throw error; 
+                    }
+                })
+            })  
             .catch(error => {
-                console.log(error)
+                console.log(error);
                 throw error;
-            });
+            })
         },
         updateUser: (parent, args) => {
             return User.findOne({
                 where: {
-                    id: args.id
+                    id: args.userId
                 }
             })
             .then( user => {
                 return user.update({
                     name: args.userInput.name || user.name,
-                    userName: args.userInput.userName || user.userName,
-                    password: args.userInput.password || user.password,
                     dob: args.userInput.dob || user.dob,
                     gender: args.userInput.gender || user.gender,
                     status: args.userInput.status || user.status,
@@ -131,7 +152,7 @@ const resolvers = {
         deleteUser: (parent, args) => {
             return User.destroy({
                 where: {
-                    id: args.id
+                    id: args.userId
                 }
             })
             .then( rowsDeleted => {
@@ -145,35 +166,60 @@ const resolvers = {
                 console.log(error);
             });
         },
-        login: (parent, args) => {
-            console.log(args)
+        // Login with Facebook
+        loginFb: (parent, args) => {
             const errors = [];
-            return User.findOne({
-                where: {
-                    name: args.name,
-                    password: args.password
-                }
-            })
-            .then( user => {
-                if (!user) {
-                    const error = new Error('Username and password does not match our records');
-                    error.data = errors;
-                    error.code = 401;
-                    throw error;
-                }
 
-                return user.update({ loginLocation: { type: 'Point', coordinates: args.location }, city: args.city })
-                .then(() => {
-                    const token = jwt.sign(
-                        {
-                            userId: user.id.toString(),
-                            userName: user.name.toString()
-                        }, 
-                        'secret', 
-                        // { expiresIn: '24h' }
-                    );
-                    return { token: token };
-                })
+            const { facebookToken, facebookId, loginLocation } = args.userInput;
+
+            return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${API.fbAppId}|${API.fbSecret}`)
+            .then(response => {
+                return response.json()
+                .then(response => {
+                    if (response.data.is_valid) {
+                        return User.findOne({
+                            where: {
+                                facebookId: facebookId
+                            }
+                        })
+                        .then( user => {
+                            if (!user) {
+                                const error = new Error('Cannot find user');
+                                error.data = errors;
+                                error.code = 401;
+                                throw error;
+                            }
+
+                            // Use Google maps API to get city from browser location
+                            return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${API.key}`)
+                            .then(response => {
+                                return response.json()
+                                .then(result => {
+                                    return user.update({ 
+                                        loginLocation: { type: 'Point', coordinates: loginLocation }, 
+                                        city: result ? result.results[5].formatted_address : "Somewhere"
+                                    })
+                                    .then(() => {
+                                        const token = jwt.sign(
+                                            {
+                                                userId: user.id.toString(),
+                                                userName: user.name.toString()
+                                            }, 
+                                            'secret', 
+                                            // { expiresIn: '24h' }
+                                        );
+                                        return token;
+                                    })
+                                })
+                            })
+                        })
+                    } else {
+                        const error = new Error('Invalid Facebook access token');
+                        error.data = errors;
+                        error.code = 401;   
+                        throw error; 
+                    }    
+                })    
             }).catch(error => {
                throw error
             });

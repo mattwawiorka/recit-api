@@ -4,31 +4,26 @@ const typeDef = `
     type User {
         id: ID!
         name: String!
-        userName: String
+        facebookId: String
         phoneNumber: String
-        password: String
         dob: String
         gender: String
         status: String
-        createdAt: String
         profilePic: String
         pic1: String
         pic2: String
         pic3: String
         loginLocation: Point
         city: String
-    }
-
-    type AuthData {
-        token: String!
-        userId: String!
+        createdAt: String
+        updatedAt: String
     }
 
     input userInput {
+        facebookId: String
+        facebookToken: String
         name: String
-        userName: String
         phoneNumber: String
-        password: String
         dob: String
         gender: String
         status: String
@@ -36,6 +31,8 @@ const typeDef = `
         pic1: String
         pic2: String
         pic3: String
+        loginLocation: [Float]
+        city: String
     }
 
     type Query {
@@ -45,10 +42,10 @@ const typeDef = `
     }
 
     type Mutation {
-        createUser(userInput: userInput): User
-        updateUser(id: ID!, userInput: userInput): User
-        deleteUser(id: ID!): Boolean
-        login(name: String!, password: String!, location: [Float], city: String): AuthData
+        createUserFb(userInput: userInput): User
+        updateUser(userId: ID!, userInput: userInput): User
+        deleteUser(userId: ID!): Boolean
+        loginFb(userInput: userInput): String
     }
 `;
 

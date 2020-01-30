@@ -339,7 +339,7 @@ const resolvers = {
                 limit: limit,
                 order: order
             }
-            
+
             return Player.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor;

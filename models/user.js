@@ -12,20 +12,23 @@ const User = sequelize.define('user',
       allowNull: false,
       primaryKey: true
     },
+    // userName: {
+    //   type: Sequelize.STRING,
+    //   allowNull: false
+    // },
     name: {
       type: Sequelize.STRING,
       allowNull: false
     },
-    userName: {
+    facebookId: {
       type: Sequelize.STRING
     },
     phoneNumber: {
       type: Sequelize.STRING
     },
-    password: {
-      type: Sequelize.STRING,
-      allowNull: false
-    },
+    // password: {
+    //   type: Sequelize.STRING
+    // },
     dob: {
       type: Sequelize.DATE  
     },
@@ -38,19 +41,19 @@ const User = sequelize.define('user',
     },
     profilePic: {
       type: Sequelize.STRING,
-      defaultValue: 'profile-blank.png'
+      defaultValue: 'http://localhost:8080/images/profile-blank.png'
     },
     pic1: {
       type: Sequelize.STRING,
-      defaultValue: 'profile-blank.png'
+      defaultValue: 'http://localhost:8080/images/profile-blank.png'
     },
     pic2: {
       type: Sequelize.STRING,
-      defaultValue: 'profile-blank.png'
+      defaultValue: 'http://localhost:8080/images/profile-blank.png'
     },
     pic3: {
       type: Sequelize.STRING,
-      defaultValue: 'profile-blank.png'
+      defaultValue: 'http://localhost:8080/images/profile-blank.png'
     },
     loginLocation: {
       type: Sequelize.GEOMETRY('POINT', 4326)
@@ -66,22 +69,22 @@ const User = sequelize.define('user',
         // If pic is changed check if that pic is used elsewhere, if not - delete
         if (user.changed('profilePic')) {
           if (Object.values(user.dataValues).indexOf(user.previous('profilePic')) < 0) {
-            fs.unlink('images' + user.previous('profilePic'), err => console.log(err))
+            fs.unlink(user.previous('profilePic').split('8080')[1], err => console.log(err))
           }
         }
         if (user.changed('pic1')) {
           if (Object.values(user.dataValues).indexOf(user.previous('pic1')) < 0) {
-            fs.unlink('images' + user.previous('pic1'), err => console.log(err))
+            fs.unlink('images/' + user.id + '/' + user.previous('pic1').split('/')[5], err => console.log(err))
           }
         }
         if (user.changed('pic2')) {
           if (Object.values(user.dataValues).indexOf(user.previous('pic2')) < 0) {
-            fs.unlink('images' + user.previous('pic2'), err => console.log(err))
+            fs.unlink(user.previous('pic2').split('8080')[1], err => console.log(err))
           }
         }
         if (user.changed('pic3')) {
           if (Object.values(user.dataValues).indexOf(user.previous('pic3')) < 0) {
-            fs.unlink('images' + user.previous('pic3'), err => console.log(err))
+            fs.unlink(user.previous('pic3').split('8080')[1], err => console.log(err))
           }
         }
       }
