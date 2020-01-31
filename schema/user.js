@@ -3,7 +3,7 @@
 const typeDef = `
     type User {
         id: ID!
-        name: String!
+        name: String
         facebookId: String
         phoneNumber: String
         dob: String
@@ -24,6 +24,7 @@ const typeDef = `
         facebookToken: String
         name: String
         phoneNumber: String
+        phoneCode: Int
         dob: String
         gender: String
         status: String
@@ -42,10 +43,13 @@ const typeDef = `
     }
 
     type Mutation {
-        createUserFb(userInput: userInput): User
+        createUserFb(userInput: userInput): Boolean
+        createUserPhone(phoneNumber: String!): Boolean
+        loginPhone(phoneNumber: String!): User
+        verifyUserPhone(userInput: userInput): String
+        loginFb(userInput: userInput): String
         updateUser(userId: ID!, userInput: userInput): User
         deleteUser(userId: ID!): Boolean
-        loginFb(userInput: userInput): String
     }
 `;
 

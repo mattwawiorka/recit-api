@@ -26,6 +26,7 @@
     "node-fetch": "^2.6.0",
     "sequelize": "^5.19.6",
     "subscriptions-transport-ws": "^0.9.16",
+    "twilio": "^3.39.3",
     "validator": "^11.1.0"
   },
   "devDependencies": {

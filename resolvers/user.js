@@ -3,6 +3,7 @@ const User = require('../models/user');
 const jwt = require('jsonwebtoken');
 const API = require('../api.json');
 const fetch = require('node-fetch');
+const twilio = require('twilio')(API.twilioSid, API.twilioToken);
 
 const resolvers = {
     Query: {
@@ -101,10 +102,11 @@ const resolvers = {
                                 if (response.url) {
                                     return user.update({ profilePic: response.url })
                                     .then(user => {
-                                        return user;
+                                        return true;
                                     })
+                                } else {
+                                    return true;
                                 }
-                                return user;
                             })   
                         })
                         .catch(error => {
@@ -223,6 +225,148 @@ const resolvers = {
             }).catch(error => {
                throw error
             });
+        },
+        // Create the user record to be verified with the SMS code provided at signup
+        createUserPhone: (parent, args, context) => {
+
+            const code = Math.floor(100000 + Math.random() * 900000);
+
+            return twilio.messages.create({
+                body: 'Here is your Rec-it access code: ' + code,
+                from: '+12034576851',
+                to: '+1' + args.phoneNumber
+            })
+            .then(message => {
+                if (message) {
+                    return User.create({
+                        phoneNumber: args.phoneNumber,
+                        phoneCode: code
+                    })
+                    .then( user => {
+                        if (user) {
+                            return true;
+                        } else {
+                            const error = new Error('Server error, please try again');  
+                            throw error; 
+                        }
+                    })
+                } else {
+                    const error = new Error('Could not send SMS to the provided phone number');  
+                    throw error; 
+                }             
+            })
+            .catch(error => {
+                console.log(error);
+                throw error;
+            })
+        },
+        // Reset existing user's SMS code for verification at login
+        loginPhone: (parent, args, context) => {
+
+            const code = Math.floor(100000 + Math.random() * 900000);
+
+            return User.findOne({
+                where: {
+                    phoneNumber: args.phoneNumber
+                }
+            })
+            .then( user => {
+                if (user) {
+                    return twilio.messages.create({
+                        body: 'Here is your Rec-it access code: ' + code,
+                        from: '+12034576851',
+                        to: '+1' + args.phoneNumber
+                    })
+                    .then( message => {
+                        if (message) {
+                            return user.update({ phoneCode: code })
+                            .then(result => {
+                                if (result) {
+                                    return { id: user.id };
+                                }
+                                else {
+                                    const error = new Error('Server error, please try again');  
+                                    throw error;
+                                }
+                            })
+                        } else {
+                            const error = new Error('Could not send SMS to the provided phone number');  
+                            throw error; 
+                        }
+                    })
+                } else {
+                    const error = new Error('Could not find user with that phone number');  
+                    throw error; 
+                }
+            })
+            .catch(error => {
+                console.log(error);
+                throw error;
+            });
+        },
+        // Log user in given the correct SMS verification code
+        verifyUserPhone: (parent, args, context) => {
+
+            const { phoneNumber, phoneCode, loginLocation, name, dob, gender } = args.userInput;
+
+            return User.findOne({
+                where: {
+                    phoneNumber: phoneNumber,
+                    phoneCode: phoneCode
+                }
+            })
+            .then( user => {
+                // Phonenumber 
+                if (user) {
+                    // Use Google maps API to get city from browser location
+                    return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${API.key}`)
+                    .then(response => {
+                        return response.json()
+                        .then(result => {
+                            return user.update({ 
+                                loginLocation: { type: 'Point', coordinates: loginLocation }, 
+                                city: result ? result.results[5].formatted_address : "Somewhere",
+                                name: name || user.name,
+                                dob: dob || user.dob,
+                                gender: gender || user.gender
+                            })
+                            .then(() => {
+                                const token = jwt.sign(
+                                    {
+                                        userId: user.id.toString(),
+                                        userName: user.name.toString()
+                                    }, 
+                                    'secret', 
+                                    // { expiresIn: '24h' }
+                                );
+                                return token;
+                            })
+                        })
+                    })
+                // Code didn't match up existing user
+                } else {
+                    // If the code doesn't match up during signup, delete the unverified user record 
+                    if (name && dob && gender) {
+                        return User.destroy({
+                            where: {
+                                id: args.userId,
+                                phoneNumber: phoneNumber
+                            }
+                        })
+                        .then(() => {
+                            const error = new Error('Could not verify user, please try again');
+                            throw error; 
+                        })
+                    } else {
+                        const error = new Error('Could not verify user, please try again');
+                        throw error; 
+                    }
+                }
+            })
+            .catch(error => {
+                console.log(error);
+                throw error;
+            })
         },
     }
 };

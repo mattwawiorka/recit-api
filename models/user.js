@@ -17,14 +17,16 @@ const User = sequelize.define('user',
     //   allowNull: false
     // },
     name: {
-      type: Sequelize.STRING,
-      allowNull: false
+      type: Sequelize.STRING
     },
     facebookId: {
       type: Sequelize.STRING
     },
     phoneNumber: {
       type: Sequelize.STRING
+    },
+    phoneCode: {
+      type: Sequelize.INTEGER
     },
     // password: {
     //   type: Sequelize.STRING
