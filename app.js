@@ -136,7 +136,7 @@ const server = createServer(app);
 
 sequelize
   // .sync({ force: true })
-  .sync({ force: true })
+  .sync()
   .then( () => {
     server.listen(8080, () => {
       console.log('Server online!')

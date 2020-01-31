@@ -28,9 +28,10 @@ const User = sequelize.define('user',
     phoneCode: {
       type: Sequelize.INTEGER
     },
-    // password: {
-    //   type: Sequelize.STRING
-    // },
+    verified: {
+      type: Sequelize.BOOLEAN,
+      defaultValue: false
+    },
     dob: {
       type: Sequelize.DATE  
     },

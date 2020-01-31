@@ -45,7 +45,7 @@ const typeDef = `
     type Mutation {
         createUserFb(userInput: userInput): Boolean
         createUserPhone(phoneNumber: String!): Boolean
-        loginPhone(phoneNumber: String!): User
+        loginPhone(phoneNumber: String!): Boolean
         verifyUserPhone(userInput: userInput): String
         loginFb(userInput: userInput): String
         updateUser(userId: ID!, userInput: userInput): User

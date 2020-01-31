@@ -69,7 +69,6 @@ const resolvers = {
         // May decide to implement username in the future for better player searching
         createUserFb: (parent, args) => {
             const { name, dob, gender, facebookId, facebookToken } = args.userInput;
-            const errors = [];
 
             // Verify Facebook access token is valid for our app
             return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${API.fbAppId}|${API.fbSecret}`)
@@ -85,14 +84,14 @@ const resolvers = {
                                 name: name,
                                 dob: dob,
                                 gender: gender,
-                                facebookId: facebookId
+                                facebookId: facebookId,
+                                verified: true
                             }
                         })
                         .spread( (user, created) => {
                             if (!created) {
-                                const error = new Error('User already exists');
-                                error.data = errors;
-                                error.code = 401;   
+                                const error = new Error('User already exists'); 
+                                error.code = 400;
                                 throw error; 
                             }
 
@@ -109,14 +108,9 @@ const resolvers = {
                                 }
                             })   
                         })
-                        .catch(error => {
-                            console.log(error)
-                            throw error;
-                        });
                     } else {
-                        const error = new Error('Invalid Facebook access token');
-                        error.data = errors;
-                        error.code = 401;   
+                        const error = new Error(response.data.error.message); 
+                        error.code = response.data.error.cdoe
                         throw error; 
                     }
                 })
@@ -187,19 +181,19 @@ const resolvers = {
                         .then( user => {
                             if (!user) {
                                 const error = new Error('Cannot find user');
-                                error.data = errors;
                                 error.code = 401;
                                 throw error;
                             }
 
                             // Use Google maps API to get city from browser location
-                            return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${API.key}`)
+                            return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${API.google}`)
                             .then(response => {
                                 return response.json()
                                 .then(result => {
+                                    console.log(result)
                                     return user.update({ 
                                         loginLocation: { type: 'Point', coordinates: loginLocation }, 
-                                        city: result ? result.results[5].formatted_address : "Somewhere"
+                                        city: result ? result.results[7].formatted_address : "Somewhere"
                                     })
                                     .then(() => {
                                         const token = jwt.sign(
@@ -216,14 +210,14 @@ const resolvers = {
                             })
                         })
                     } else {
-                        const error = new Error('Invalid Facebook access token');
-                        error.data = errors;
-                        error.code = 401;   
-                        throw error; 
+                        const error = new Error(response.data.error.message); 
+                        error.code = response.data.error.cdoe
+                        throw error;  
                     }    
                 })    
             }).catch(error => {
-               throw error
+                console.log(error);
+                throw error
             });
         },
         // Create the user record to be verified with the SMS code provided at signup
@@ -231,32 +225,48 @@ const resolvers = {
 
             const code = Math.floor(100000 + Math.random() * 900000);
 
-            return twilio.messages.create({
-                body: 'Here is your Rec-it access code: ' + code,
-                from: '+12034576851',
-                to: '+1' + args.phoneNumber
+            return User.findOne({
+                where: {
+                    phoneNumber: args.phoneNumber
+                }
             })
-            .then(message => {
-                if (message) {
-                    return User.create({
-                        phoneNumber: args.phoneNumber,
-                        phoneCode: code
+            .then( user => {
+                if (!user) {
+                    return twilio.messages.create({
+                        body: 'Here is your Rec-it access code: ' + code,
+                        from: '+12034576851',
+                        to: '+1' + args.phoneNumber
                     })
-                    .then( user => {
-                        if (user) {
-                            return true;
+                    .then(message => {
+                        if (message) {
+                            return User.create({
+                                phoneNumber: args.phoneNumber,
+                                phoneCode: code
+                            })
+                            .then( user => {
+                                if (user) {
+                                    return true;
+                                } else {
+                                    const error = new Error('Server error, please try again');  
+                                    throw error; 
+                                }
+                            })
                         } else {
-                            const error = new Error('Server error, please try again');  
+                            const error = new Error('Could not send SMS to the provided phone number');  
                             throw error; 
-                        }
+                        }             
                     })
                 } else {
-                    const error = new Error('Could not send SMS to the provided phone number');  
+                    const error = new Error('User with that phone number already exists');  
                     throw error; 
-                }             
+                }
             })
             .catch(error => {
-                console.log(error);
+                console.log(error)
+                if (error.code === 21211 || error.code === 21608) {
+                    error.code = 400;
+                    error.message = 'Could not send SMS to the provided phone number';
+                }
                 throw error;
             })
         },
@@ -279,10 +289,10 @@ const resolvers = {
                     })
                     .then( message => {
                         if (message) {
-                            return user.update({ phoneCode: code })
+                            return user.update({ phoneCode: code, verified: false })
                             .then(result => {
                                 if (result) {
-                                    return { id: user.id };
+                                    return true;
                                 }
                                 else {
                                     const error = new Error('Server error, please try again');  
@@ -312,23 +322,24 @@ const resolvers = {
             return User.findOne({
                 where: {
                     phoneNumber: phoneNumber,
-                    phoneCode: phoneCode
+                    phoneCode: phoneCode.toString().length < 7 ? phoneCode : 1
                 }
             })
             .then( user => {
                 // Phonenumber 
                 if (user) {
                     // Use Google maps API to get city from browser location
-                    return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${API.key}`)
+                    return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${API.google}`)
                     .then(response => {
                         return response.json()
                         .then(result => {
                             return user.update({ 
                                 loginLocation: { type: 'Point', coordinates: loginLocation }, 
-                                city: result ? result.results[5].formatted_address : "Somewhere",
+                                city: result ? result.results[7].formatted_address : "Somewhere",
                                 name: name || user.name,
                                 dob: dob || user.dob,
-                                gender: gender || user.gender
+                                gender: gender || user.gender,
+                                verified: true
                             })
                             .then(() => {
                                 const token = jwt.sign(
@@ -345,22 +356,8 @@ const resolvers = {
                     })
                 // Code didn't match up existing user
                 } else {
-                    // If the code doesn't match up during signup, delete the unverified user record 
-                    if (name && dob && gender) {
-                        return User.destroy({
-                            where: {
-                                id: args.userId,
-                                phoneNumber: phoneNumber
-                            }
-                        })
-                        .then(() => {
-                            const error = new Error('Could not verify user, please try again');
-                            throw error; 
-                        })
-                    } else {
-                        const error = new Error('Could not verify user, please try again');
-                        throw error; 
-                    }
+                    const error = new Error('Could not verify user, please try again');
+                    throw error;  
                 }
             })
             .catch(error => {
