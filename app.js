@@ -82,6 +82,10 @@ app.post('/post-image', (req, res) => {
     throw new Error('Not authenticated!');
   }
 
+  if (req.query.user != req.userId) {
+    throw new Error('Unauthorized user');
+  }
+
   let dir =  __dirname + '/images/' + req.userId;
 
   if (!fs.existsSync(dir)) {

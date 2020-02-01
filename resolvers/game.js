@@ -216,7 +216,14 @@ const resolvers = {
             });
         },
         // Get game info for game page
-        game: (parent, args) => {
+        game: (parent, args, context) => {
+            // Don't allow users to view games if they are not logged in
+            // For now - may come up with a different solution later
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
+
             return Game.findOne({
                 where: {
                     id: args.id
@@ -235,7 +242,13 @@ const resolvers = {
             });
         },
         // Get players for game
-        players: (parent, args) => {
+        players: (parent, args, context) => {
+            // Don't allow users to view games if they are not logged in
+            // For now - may come up with a different solution later
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
 
             return Player.findAll({
                 raw: true,
@@ -273,7 +286,7 @@ const resolvers = {
             });
         },
         // Get host for a game
-        host: (parent, args) => {
+        host: (parent, args, context) => {
             return Player.findOne({
                 raw: true,
                 where: {
@@ -526,7 +539,7 @@ const resolvers = {
             const endD = new Date(endDateTime);
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to create game' });
+                errors.push({ message: 'Must be logged in to update game' });
             }
             if (!title || !dateTime || !venue || !address || !sport || !description || !spots) {
                 errors.push({ message: 'Please fill in all required fields' });
@@ -562,21 +575,41 @@ const resolvers = {
                     throw error;
                 }
 
-                return game.update({
-                    title: title || game.title,
-                    dateTime: dateTime || game.dateTime,
-                    endDateTime: endDateTime || game.endDateTime,
-                    venue: venue || game.venue,
-                    address: address || game.address,
-                    location: coords ? {type: 'Point', coordinates: coords} : game.location,
-                    sport: sport || game.sport,
-                    spots: spots || game.spots,
-                    description: description || game.description,
-                    public: public
-                }) 
-                .then( result => {
-                    return result;
+                return Player.findOne({
+                    raw: true,
+                    where: {
+                        gameId: game.id,
+                        role: 1
+                    }
                 })
+                .then(host => {
+                    if (host.userId != context.user) {
+                        const error = new Error('Only host can edit game');
+                        throw error;
+                    } 
+                    else {
+                        return game.update({
+                            title: title || game.title,
+                            dateTime: dateTime || game.dateTime,
+                            endDateTime: endDateTime || game.endDateTime,
+                            venue: venue || game.venue,
+                            address: address || game.address,
+                            location: coords ? {type: 'Point', coordinates: coords} : game.location,
+                            sport: sport || game.sport,
+                            spots: spots || game.spots,
+                            description: description || game.description,
+                            public: public
+                        }) 
+                        .then( result => {
+                            if (!result) {
+                                const error = new Error('Could not update game');
+                                throw error;
+                            } else {
+                                return result;
+                            } 
+                        })
+                    } 
+                }); 
             })
             .catch(error => {
                 console.log(error)
@@ -587,13 +620,7 @@ const resolvers = {
             const errors = [];
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to cancel game' });
-            }
-
-            if (errors.length > 0) {
-                const error = new Error('Could not cancel game');
-                error.data = errors;
-                error.code = 401;   
+                const error = new Error('Unauthorized user');
                 throw error;
             }
 
@@ -608,35 +635,50 @@ const resolvers = {
                     throw error;
                 }
 
-                return Game.destroy({
+                return Player.findOne({
+                    raw: true,
                     where: {
-                        id: game.id
+                        gameId: game.id,
+                        role: 1
                     }
                 })
-                .then( rowsDeleted => {
-                    if (rowsDeleted === 1) {
-                        // Also deleted the corresponding conversation
-                        return Conversation.destroy({
+                .then(host => {
+                    if (host.userId != context.user) {
+                        const error = new Error('Only host can cancel game');
+                        throw error;
+                    } 
+                    else {
+                        return Game.destroy({
                             where: {
-                                id: game.conversationId
+                                id: game.id
                             }
                         })
                         .then( rowsDeleted => {
                             if (rowsDeleted === 1) {
-                                pubsub.publish(GAME_DELETED, {
-                                    gameDeleted: args.gameId
+                                // Also deleted the corresponding conversation
+                                return Conversation.destroy({
+                                    where: {
+                                        id: game.conversationId
+                                    }
                                 })
-                                return true;
+                                .then( rowsDeleted => {
+                                    if (rowsDeleted === 1) {
+                                        pubsub.publish(GAME_DELETED, {
+                                            gameDeleted: args.gameId
+                                        })
+                                        return true;
+                                    } else {
+                                        const error = new Error('Could not cancel game');
+                                        throw error;
+                                    }
+                                }) 
                             } else {
                                 const error = new Error('Could not cancel game');
                                 throw error;
                             }
-                        }) 
-                    } else {
-                        const error = new Error('Could not cancel game');
-                        throw error;
+                        })
                     }
-                })
+                })      
             })
             .catch(error => {
                 console.log(error);
@@ -647,13 +689,7 @@ const resolvers = {
             const errors = [];
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to join game' });
-            }
-
-            if (errors.length > 0) {
-                const error = new Error('Could not join game');
-                error.data = errors;
-                error.code = 401;   
+                const error = new Error('Unauthorized user');
                 throw error;
             }
 
@@ -776,10 +812,10 @@ const resolvers = {
                     })
                 }
                 else {
-                    if (p.role === 2) errors.push({ message: 'Already joined' });
                     const error = new Error('Could not join game');
-                    error.data = errors;
-                    error.code = 401;   
+                    if (p.role === 2) {
+                        error.message = "Already joined game";
+                    }
                     throw error;
                 }
             })
@@ -789,16 +825,9 @@ const resolvers = {
             });
         },
         interestGame: (parent, args, context, req) => {
-            const errors = [];
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to subscribe to game' });
-            }
-
-            if (errors.length > 0) {
-                const error = new Error('Could not subscribe to game');
-                error.data = errors;
-                error.code = 401;   
+                const error = new Error('Unauthorized user');
                 throw error;
             }
 
@@ -849,7 +878,11 @@ const resolvers = {
                     })
                 }
                 else {
-                    return false;
+                    const error = new Error('Could not subscribe game');
+                    if (p.role === 3) {
+                        error.message = "Already interested in game";
+                    }
+                    throw error;
                 }
             })
             .catch(error => {
@@ -861,13 +894,7 @@ const resolvers = {
             const errors = [];
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to leave game' });
-            }
-
-            if (errors.length > 0) {
-                const error = new Error('Could not leave game');
-                error.data = errors;
-                error.code = 401;   
+                const error = new Error('Unauthorized user');
                 throw error;
             }
 

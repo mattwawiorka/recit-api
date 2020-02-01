@@ -7,7 +7,12 @@ const twilio = require('twilio')(API.twilioSid, API.twilioToken);
 
 const resolvers = {
     Query: {
-        users: () => {
+        users: (parent, args, context) => {
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
+
             return User.findAll()
             .then( users => {
                 return users;
@@ -16,7 +21,12 @@ const resolvers = {
                 throw error;
             });
         },
-        user: (parent, args) => {
+        user: (parent, args, context) => {
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
+
             return User.findOne({
                 raw: true,
                 where: {
@@ -24,7 +34,10 @@ const resolvers = {
                 }
             })
             .then( user => {
-                return user;
+                return {
+                    node: user,
+                    isMe: user.id == context.user
+                };
             }).catch(error => {
                 console.log(error);
                 throw error;
@@ -32,6 +45,10 @@ const resolvers = {
         },
         // User name search
         findUser: (parent, args, context) => {
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
 
             let options = {
                 where: {
@@ -120,10 +137,20 @@ const resolvers = {
                 throw error;
             })
         },
-        updateUser: (parent, args) => {
+        updateUser: (parent, args, context) => {
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
+
+            if (args.userId != context.user) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
+
             return User.findOne({
                 where: {
-                    id: args.userId
+                    id: context.user
                 }
             })
             .then( user => {
@@ -146,9 +173,14 @@ const resolvers = {
             });
         },
         deleteUser: (parent, args) => {
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
+
             return User.destroy({
                 where: {
-                    id: args.userId
+                    id: context.user
                 }
             })
             .then( rowsDeleted => {

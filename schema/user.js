@@ -36,9 +36,14 @@ const typeDef = `
         city: String
     }
 
+    type UserEdge {
+        node: User
+        isMe: Boolean
+    } 
+
     type Query {
         users: [User!]!
-        user(userId: ID!): User!
+        user(userId: ID!): UserEdge!
         findUser(name: String!, location: [Float]): [User]
     }
 
