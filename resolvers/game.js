@@ -69,7 +69,6 @@ const resolvers = {
                 () => pubsub.asyncIterator(NOTIFICATION),
                 (payload, variables) => {
                     if (payload.currentUser === variables.userId) return false;
-                    console.log('send notification');
                     return Player.findOne({
                         raw: true,
                         where: {
@@ -233,9 +232,9 @@ const resolvers = {
                 if (!game) {
                     const error = new Error('Could not find game');
                     throw error;
+                } else {
+                    return game;
                 }
-
-                return game;
             }).catch(error => {
                 console.log(error)
                 throw error;
@@ -274,7 +273,8 @@ const resolvers = {
                             userId: user.id, 
                             name: user.name,
                             role: p.role,
-                            profilePic: user.profilePic
+                            profilePic: user.profilePic,
+                            isMe: user.id == context.user
                         };
                         return player;
                     })
@@ -300,7 +300,10 @@ const resolvers = {
                     throw error;
                 }
 
-                return { userId: host.userId };
+                return { 
+                    userId: host.userId,
+                    isMe: host.userId == context.user 
+                };
             })
             .catch(error => {
                 console.log(error)
@@ -313,7 +316,12 @@ const resolvers = {
             let direction, order, limit;
 
             if (!context.isAuth) return {
+                totalCount: 0,
                 edges: [],
+                pageInfo: {
+                    endCursor: null,
+                    hasNextPage: false
+                }
             }
 
             // Default direction = future
@@ -732,21 +740,29 @@ const resolvers = {
                                     userId: context.user
                                 })
                                 .then(() => {
-                                    let player = {
-                                        userId: context.user,
-                                        name: context.userName,
-                                        role: p.dataValues.role
-                                    };
-
-                                    pubsub.publish(PLAYER_JOINED, {
-                                        playerJoined: player, gameId: args.gameId
-                                    });
-
-                                    pubsub.publish(NOTIFICATION, { 
-                                        gameId: args.gameId, currentUser: context.user
-                                    });
-
-                                    return player;
+                                    return User.findOne({
+                                        where: {
+                                            id: context.user
+                                        }
+                                    })
+                                    .then( user => {
+                                        let player = {
+                                            userId: context.user,
+                                            name: context.userName,
+                                            role: p.dataValues.role,
+                                            profilePic: user.profilePic
+                                        };
+    
+                                        pubsub.publish(PLAYER_JOINED, {
+                                            playerJoined: player, gameId: args.gameId
+                                        });
+    
+                                        pubsub.publish(NOTIFICATION, { 
+                                            gameId: args.gameId, currentUser: context.user
+                                        });
+    
+                                        return player;
+                                    })
                                 })
                             })
                         }
@@ -760,21 +776,29 @@ const resolvers = {
                             userId: context.user
                         })
                         .then(() => {
-                            let player = {
-                                userId: context.user,
-                                name: context.userName,
-                                role: p.dataValues.role
-                            };
+                            return User.findOne({
+                                where: {
+                                    id: context.user
+                                }
+                            })
+                            .then( user => {
+                                let player = {
+                                    userId: context.user,
+                                    name: context.userName,
+                                    role: p.dataValues.role,
+                                    profilePic: user.profilePic
+                                };
 
-                            pubsub.publish(PLAYER_JOINED, {
-                                playerJoined: player, gameId: args.gameId
-                            });
+                                pubsub.publish(PLAYER_JOINED, {
+                                    playerJoined: player, gameId: args.gameId
+                                });
 
-                            pubsub.publish(NOTIFICATION, { 
-                                gameId: args.gameId, currentUser: context.user
-                            });
+                                pubsub.publish(NOTIFICATION, { 
+                                    gameId: args.gameId, currentUser: context.user
+                                });
 
-                            return player;
+                                return player;
+                            })
                         })
                     })
                 }
@@ -793,21 +817,29 @@ const resolvers = {
                             userId: context.user
                         })
                         .then(() => {
-                            let player = {
-                                userId: context.user,
-                                name: context.userName,
-                                role: p.dataValues.role
-                            };
-    
-                            pubsub.publish(PLAYER_JOINED, {
-                                playerJoined: player, gameId: args.gameId
-                            });
+                            return User.findOne({
+                                where: {
+                                    id: context.user
+                                }
+                            })
+                            .then( user => {
+                                let player = {
+                                    userId: context.user,
+                                    name: context.userName,
+                                    role: p.dataValues.role,
+                                    profilePic: user.profilePic
+                                };
 
-                            pubsub.publish(NOTIFICATION, { 
-                                gameId: args.gameId, currentUser: context.user
-                            });
-    
-                            return player;
+                                pubsub.publish(PLAYER_JOINED, {
+                                    playerJoined: player, gameId: args.gameId
+                                });
+
+                                pubsub.publish(NOTIFICATION, { 
+                                    gameId: args.gameId, currentUser: context.user
+                                });
+
+                                return player;
+                            })
                         })
                     })
                 }

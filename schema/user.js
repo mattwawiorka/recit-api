@@ -45,6 +45,7 @@ const typeDef = `
         users: [User!]!
         user(userId: ID!): UserEdge!
         findUser(name: String!, location: [Float]): [User]
+        whoAmI: User
     }
 
     type Mutation {

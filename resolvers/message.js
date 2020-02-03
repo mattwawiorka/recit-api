@@ -66,6 +66,11 @@ const resolvers = {
 
             console.log(pubsub.ee.listenerCount('MESSAGE_ADDED'))
 
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
+
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
 
             let options = {
@@ -119,6 +124,11 @@ const resolvers = {
             let edges = [], endCursor;
 
             console.log('inbox')
+
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
 
             return Participant.findAll({
                 where: {
@@ -212,16 +222,9 @@ const resolvers = {
     },
     Mutation: {
         createMessage: (parent, args, context) => {
-            const errors = [];
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to create message' });
-            }
-
-            if (errors.length > 0) {
-                const error = new Error('Could not create message');
-                error.data = errors;
-                error.code = 401;   
+                const error = new Error('Unauthorized user');
                 throw error;
             }
 
@@ -236,7 +239,7 @@ const resolvers = {
                 pubsub.publish(MESSAGE_ADDED, {
                     messageAdded: {
                         node: message.dataValues,
-                        cursor: message.dataValues.updatedAt,
+                        cursor: message.dataValues.updatedAt
                     }
                 })
 
@@ -256,16 +259,9 @@ const resolvers = {
             })
         },
         updateMessage: (parent, args, context) => {
-            const errors = [];
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to update message' });
-            }
-
-            if (errors.length > 0) {
-                const error = new Error('Could not update message');
-                error.data = errors;
-                error.code = 401;   
+                const error = new Error('Unauthorized user');
                 throw error;
             }
 
@@ -301,16 +297,9 @@ const resolvers = {
             });
         },
         deleteMessage: (parent, args, context) => {
-            const errors = [];
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to delete message' });
-            }
-
-            if (errors.length > 0) {
-                const error = new Error('Could not delete message');
-                error.data = errors;
-                error.code = 401;   
+                const error = new Error('Unauthorized user');
                 throw error;
             }
 
@@ -348,16 +337,9 @@ const resolvers = {
             })
         },
         addToConversation: (parent, args, context) => {
-            const errors = [];
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to add user' });
-            }
-
-            if (errors.length > 0) {
-                const error = new Error('Could not add user');
-                error.data = errors;
-                error.code = 401;   
+                const error = new Error('Unauthorized user');
                 throw error;
             }
 
@@ -381,10 +363,7 @@ const resolvers = {
                 .spread( (participant, created) => {
 
                     if (!created) {
-                        errors.push({ message: "User already invited" });
-                        const error = new Error('Could not add user');
-                        error.data = errors;
-                        error.code = 401;   
+                        const error = new Error("User already invited");
                         throw error; 
                     }
 

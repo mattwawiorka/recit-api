@@ -10,6 +10,7 @@ const resolvers = {
         users: (parent, args, context) => {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
+                error.code = 401;
                 throw error;
             }
 
@@ -21,9 +22,22 @@ const resolvers = {
                 throw error;
             });
         },
+        whoAmI: (parent, args, context) => {
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                error.code = 401;
+                throw error;
+            }
+
+            return {
+                id: context.user,
+                name: context.userName
+            }
+        },
         user: (parent, args, context) => {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
+                error.code = 401;
                 throw error;
             }
 
@@ -140,11 +154,13 @@ const resolvers = {
         updateUser: (parent, args, context) => {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
+                error.code = 401;
                 throw error;
             }
 
             if (args.userId != context.user) {
                 const error = new Error('Unauthorized user');
+                error.code = 401;
                 throw error;
             }
 
