@@ -42,6 +42,11 @@ const Game = sequelize.define('game',
       allowNull: false,
       defaultValue: 1
     },
+    spotsReserved: {
+      type: Sequelize.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
     description: {
       type: Sequelize.STRING(1000)
     },

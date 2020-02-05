@@ -13,7 +13,7 @@ const Player = sequelize.define('player',
     role: {
       type: Sequelize.INTEGER,
       allowNull: false,
-      defaultValue: "1"
+      defaultValue: "2"
     }
   }
 );
@@ -22,8 +22,7 @@ const Player = sequelize.define('player',
  * Role:
  *      1 - Host
  *      2 - Joined
- *      3 - Interested
- *      4 - Invited
+ *      3 - Reserved
  */
 
 module.exports = Player;

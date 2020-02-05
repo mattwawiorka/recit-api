@@ -110,6 +110,7 @@ app.use(
       context: {
         user: req.userId,
         userName: req.userName,
+        userPic: req.userPic,
         isAuth: req.isAuth
       },
       customFormatErrorFn: error => ({

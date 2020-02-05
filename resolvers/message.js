@@ -161,7 +161,7 @@ const resolvers = {
                             order: [ [ 'updatedAt', 'DESC' ]]
                         };
 
-                        if (p.byInvite) {
+                        if (p.level == 3) {
                             messageOptions.where.type = 3;
                         } else {
                             messageOptions.where.type = {
@@ -357,7 +357,8 @@ const resolvers = {
                     defaults: {
                         userId: args.userId,
                         conversationId: args.conversationId,
-                        byInvite: true
+                        invited: true,
+                        level: 3
                     }
                 })
                 .spread( (participant, created) => {

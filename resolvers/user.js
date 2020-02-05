@@ -247,7 +247,8 @@ const resolvers = {
                                         const token = jwt.sign(
                                             {
                                                 userId: user.id.toString(),
-                                                userName: user.name.toString()
+                                                userName: user.name.toString(),
+                                                userPic: user.profilePic.toString()
                                             }, 
                                             'secret', 
                                             // { expiresIn: '24h' }
@@ -411,6 +412,39 @@ const resolvers = {
             .catch(error => {
                 console.log(error);
                 throw error;
+            })
+        },
+        // ADMIN TEST FUNCTIONS _ TAKE THESE OUT LATER
+        createTestUser: (parent, args, context) => {
+            console.log(args)
+            return User.create({
+                name: args.name,
+                dob: '08/27/1993',
+                gender: 'male',
+                loginLocation: { type: 'Point', coordinates: [47.7169839910907, -122.32040939782564] },
+                city: 'Seattle, WA, USA'
+            })
+            .then(() => {
+                return true
+            })
+        },
+        loginTestUser: (parent, args, context) => {
+            return User.findOne({
+                where: {
+                    name: args.name
+                }
+            })
+            .then((user) => {
+                console.log(user)
+                const token = jwt.sign(
+                    {
+                        userId: user.id.toString(),
+                        userName: user.name.toString()
+                    }, 
+                    'secret', 
+                    // { expiresIn: '24h' }
+                );
+                return token;
             })
         },
     }

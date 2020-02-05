@@ -11,6 +11,7 @@ const typeDef = `
         location: Point
         sport: String
         spots: Int
+        spotsReserved: Int
         players: Int
         description: String
         playersRsvp: [User]
@@ -42,12 +43,27 @@ const typeDef = `
         pageInfo: PageInfo
     }
 
-    type Player {
-        userId: ID!
+    interface Participant {
+        userId: ID
         name: String
-        role: Int
         profilePic: String
         isMe: Boolean
+    }
+
+    type Player implements Participant {
+        userId: ID
+        name: String
+        profilePic: String
+        isMe: Boolean
+        role: Int!
+    }
+
+    type Watcher implements Participant {
+        userId: ID
+        name: String
+        profilePic: String
+        isMe: Boolean
+        level: Int!
     }
 
     input gameInput {
@@ -59,6 +75,7 @@ const typeDef = `
         coords: [Float]
         sport: String
         spots: Int
+        spotsReserved: Int
         description: String
         image: String
         public: Boolean
@@ -68,6 +85,7 @@ const typeDef = `
         games(cursor: String, sport: String, startDate: String, openSpots: String, bounds: [Float], sortOrder: String): GameFeed
         game(id: ID!): Game!
         players(gameId: ID!): [Player]
+        participants(conversationId: ID!): [Watcher]
         host(gameId: ID!): Player
         userGames(userId: ID, cursor: String, pastGames: Boolean): GameFeed
         topSport(userId: ID): String
@@ -76,7 +94,8 @@ const typeDef = `
     type Mutation {
         createGame(gameInput: gameInput): Game
         joinGame(gameId: ID!, conversationId: ID!): Player
-        interestGame(gameId: ID!, conversationId: ID!): Boolean
+        subscribe(conversationId: ID!): Boolean
+        unsubscribe(conversationId: ID!): Boolean
         leaveGame(gameId: ID!, conversationId: ID!): Player
         updateGame(id: ID!, gameInput: gameInput): Game
         deleteGame(gameId: ID!): Boolean

@@ -69,11 +69,14 @@ const resolvers = {
                 () => pubsub.asyncIterator(NOTIFICATION),
                 (payload, variables) => {
                     if (payload.currentUser === variables.userId) return false;
-                    return Player.findOne({
+                    return Participant.findOne({
                         raw: true,
                         where: {
-                            gameId: payload.gameId,
-                            userId: variables.userId
+                            conversationId: payload.conversationId,
+                            userId: variables.userId,
+                            level: {
+                                [Op.ne]: 3
+                            }
                         }
                     })
                     .then( result => {
@@ -84,7 +87,7 @@ const resolvers = {
         }
     },
     Query: {
-        // Get games feed for your area 
+        // Get public games feed for your area 
         // sql_mode = '' for games feed to work 
         games: (parent, args, context) => {
 
@@ -112,23 +115,24 @@ const resolvers = {
                         ),
                         1
                     ),
+                    public: true
                 },
                 limit: GAMES_PER_PAGE, 
                 attributes: { 
                     include: [
                         [fn("COUNT", col("users.id")), "players"],
-                        [literal('(spots - COUNT(`users`.`id`))'), 'openSpots']
+                        [literal('(spots - COUNT(`users`.`id`) - spotsReserved)'), 'openSpots']
                     ] 
                 },
                 include: [{
                     model: User, attributes: []
                 }],
-                group: ['id', 'spots'],
+                group: ['id', 'spots', 'spotsReserved'],
             };
 
             if (args.sortOrder === "SPOTS") {
                 options.order = [
-                    [literal('(spots - COUNT(`users`.`id`))'), 'DESC']
+                    [literal('(spots - COUNT(`users`.`id`) - spotsReserved)'), 'DESC']
                 ]
             } else {
                 options.order = [
@@ -173,22 +177,21 @@ const resolvers = {
             }
 
             if (args.openSpots === "1") {
-                options.having = literal('(spots - COUNT(`users`.`id`)) > 0')
+                options.having = literal('(spots - COUNT(`users`.`id`) - spotsReserved) > 0')
             }
             else if (args.openSpots === "2") {
-                options.having = literal('(spots - COUNT(`users`.`id`)) > 1')
+                options.having = literal('(spots - COUNT(`users`.`id`) - spotsReserved) > 1')
             }
             else if (args.openSpots === "3") {
-                options.having = literal('(spots - COUNT(`users`.`id`)) > 2')
+                options.having = literal('(spots - COUNT(`users`.`id`) - spotsReserved) > 2')
             }
             else if (args.openSpots === "4") {
-                options.having = literal('(spots - COUNT(`users`.`id`)) > 3')
+                options.having = literal('(spots - COUNT(`users`.`id`) - spotsReserved) > 3')
             }
             
             // Find all games not in the past
             return Game.findAndCountAll(options)
             .then( result => {
-                console.log('count',result.count.length)
                 let edges = [], endCursor; 
                 result.rows.map( (game, index) => {
                     edges.push({
@@ -220,20 +223,48 @@ const resolvers = {
             // For now - may come up with a different solution later
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
+                error.code = 401;
                 throw error;
             }
 
             return Game.findOne({
                 where: {
                     id: args.id
-                }
+                },
+                attributes: { 
+                    include: [
+                        [fn("COUNT", col("users.id")), "players"],
+                    ] 
+                },
+                include: [{
+                    model: User, attributes: []
+                }],
             })
             .then( game => {
                 if (!game) {
                     const error = new Error('Could not find game');
                     throw error;
-                } else {
-                    return game;
+                } 
+                // If game is private, check if user has been invited
+                else if (!game.public) {
+                    return Participant.findOne({
+                        where: {
+                            conversationId: game.conversationId,
+                            userId: context.user
+                        }
+                    })
+                    .then( participant => {
+                        if (participant) {
+                            return game.dataValues;
+                        } else {
+                            const error = new Error('Unauthorized user');
+                            error.code = 401;
+                            throw error;
+                        }
+                    })
+                }
+                else {
+                    return game.dataValues;
                 }
             }).catch(error => {
                 console.log(error)
@@ -246,6 +277,7 @@ const resolvers = {
             // For now - may come up with a different solution later
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
+                error.code = 401;
                 throw error;
             }
 
@@ -257,27 +289,37 @@ const resolvers = {
             })
             .then( players => {
                 return players.map( p => {
-                    return User.findOne({
-                        raw: true,
-                        where: {
-                            id: p.userId
-                        }
-                    })
-                    .then( user => {
-                        if (!user) {
-                            const error = new Error('There is no user associated with this player');
-                            throw error;
-                        }
-
+                    if (p.role == 3) {
                         let player = {
-                            userId: user.id, 
-                            name: user.name,
                             role: p.role,
-                            profilePic: user.profilePic,
-                            isMe: user.id == context.user
+                            profilePic: 'http://localhost:8080/images/profile-blank.png',
+                            isMe: false
                         };
                         return player;
-                    })
+                    }
+                    else {
+                        return User.findOne({
+                            raw: true,
+                            where: {
+                                id: p.userId
+                            }
+                        })
+                        .then( user => {
+                            if (!user) {
+                                const error = new Error('There is no user associated with this player');
+                                throw error;
+                            }
+    
+                            let player = {
+                                userId: user.id, 
+                                name: user.name,
+                                role: p.role,
+                                profilePic: user.profilePic,
+                                isMe: user.id == context.user
+                            };
+                            return player;
+                        })
+                    }
                 })
             })
             .catch(error => {
@@ -298,12 +340,13 @@ const resolvers = {
                 if (!host) {
                     const error = new Error('Could not find host');
                     throw error;
-                }
-
-                return { 
-                    userId: host.userId,
-                    isMe: host.userId == context.user 
-                };
+                } else {
+                    return { 
+                        role: 1,
+                        userId: host.userId,
+                        isMe: host.userId == context.user 
+                    };
+                }  
             })
             .catch(error => {
                 console.log(error)
@@ -312,9 +355,6 @@ const resolvers = {
         },
         // Get user specific game feed, can be used for getting upcoming games or past games (game history)
         userGames: (parent, args, context) => {
-            let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
-            let direction, order, limit;
-
             if (!context.isAuth) return {
                 totalCount: 0,
                 edges: [],
@@ -323,6 +363,9 @@ const resolvers = {
                     hasNextPage: false
                 }
             }
+
+            let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
+            let direction, order, limit;
 
             // Default direction = future
             if (args.pastGames) {
@@ -361,6 +404,7 @@ const resolvers = {
                 order: order
             }
 
+            // Get games through player association search
             return Player.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor;
@@ -386,6 +430,46 @@ const resolvers = {
                 };
             })
         },
+        participants: (parent, args, context) => {
+            return Participant.findAll({
+                where: {
+                    conversationId: args.conversationId,
+                    level: {
+                        [Op.ne]: 1
+                    }
+                }
+            })
+            .then( results => {
+                return results.map( p => {
+                    return User.findOne({
+                        raw: true,
+                        where: {
+                            id: p.userId
+                        }
+                    })
+                    .then( user => {
+                        if (!user) {
+                            const error = new Error('There is no user associated with this participant');
+                            throw error;
+                        }
+
+                        let watcher = {
+                            userId: user.id, 
+                            name: user.name,
+                            level: p.level,
+                            profilePic: user.profilePic,
+                            isMe: user.id == context.user
+                        };
+                        return watcher;
+                    })
+                })
+            })
+            .catch(error => {
+                console.log(error);
+                throw error;
+            })
+        },
+        // Get a users top played sport
         topSport: (parent, args, context) => {
             return Player.count({
                 where : {
@@ -396,6 +480,7 @@ const resolvers = {
                         model: Game,
                         attributes: ['sport'],
                         where: {
+                            // Only past (completed) games count
                             dateTime: {
                                 [Op.lt]: Date.now()
                             }
@@ -423,7 +508,7 @@ const resolvers = {
     },
     Mutation: {
         createGame: (parent, args, context) => {
-            let { title, dateTime, endDateTime, venue, address, coords, sport, spots, description, public } = args.gameInput;
+            let { title, dateTime, endDateTime, venue, address, coords, sport, spots, spotsReserved, description, public } = args.gameInput;
             const errors = [];
 
             const now = new Date();
@@ -437,7 +522,7 @@ const resolvers = {
             if (!context.isAuth) {
                 errors.push({ message: 'Must be logged in to create game' });
             }
-            if (!title || !dateTime || !sport || !description || !spots) {
+            if (!title || !dateTime || !sport || !description || !spots || (public == null)) {
                 errors.push({ 
                     message: 'Please fill in all required fields',
                     field:  'all'
@@ -452,6 +537,12 @@ const resolvers = {
             if ((spots < 2) || (spots > 32)) {
                 errors.push({ 
                     message: 'Number of players must be between 2-32',
+                    field: 'spots' 
+                });
+            }
+            if (spotsReserved > (spots - 2)) {
+                errors.push({ 
+                    message: 'Need at least 1 unreserved spot for public game',
                     field: 'spots' 
                 });
             }
@@ -493,6 +584,7 @@ const resolvers = {
                     location: { type: 'Point', coordinates: coords },
                     sport: sport,
                     spots: spots,
+                    spotsReserved: spotsReserved,
                     description: description,
                     public: public,
                     conversationId: conversation.id
@@ -512,22 +604,35 @@ const resolvers = {
                             hasUpdate: false
                         })
                         .then(() => {
-                            const gameAdded = {
-                                gameAdded: {
-                                    cursor: game.dataValues.dateTime,
-                                    node: {
-                                        id: game.dataValues.id,
-                                        title: game.dataValues.title,
-                                        sport: game.dataValues.sport,
-                                        venue: game.dataValues.venue,
-                                        dateTime: game.dataValues.dateTime,
-                                        location: game.dataValues.location,
-                                        spots: game.dataValues.spots,
-                                        players: game.dataValues.spots - 1
+                            if (game.dataValues.public) {
+                                const gameAdded = {
+                                    gameAdded: {
+                                        cursor: game.dataValues.dateTime,
+                                        node: {
+                                            id: game.dataValues.id,
+                                            title: game.dataValues.title,
+                                            sport: game.dataValues.sport,
+                                            venue: game.dataValues.venue,
+                                            dateTime: game.dataValues.dateTime,
+                                            location: game.dataValues.location,
+                                            spots: game.dataValues.spots,
+                                            players: game.dataValues.spots - 1
+                                        }
                                     }
+                                };
+
+                                pubsub.publish(GAME_ADDED, gameAdded);
+                            }
+                            
+                            // Create reserved player spots
+                            if (spotsReserved > 0) {
+                                for (i = 0; i < spotsReserved; i++) {
+                                    Player.create({
+                                        role: 3,
+                                        gameId: game.id
+                                    })
                                 }
-                            };
-                            pubsub.publish(GAME_ADDED, gameAdded);
+                            }
                             return game;
                         });
                     });
@@ -539,7 +644,7 @@ const resolvers = {
             });
         },
         updateGame: (parent, args, context) => {
-            let { title, dateTime, endDateTime, venue, address, coords, sport, spots, description, public } = args.gameInput;
+            let { title, dateTime, endDateTime, venue, address, coords, sport, spots, spotsReserved, description, public } = args.gameInput;
             const errors = [];
 
             const now = new Date();
@@ -552,16 +657,19 @@ const resolvers = {
             if (!title || !dateTime || !venue || !address || !sport || !description || !spots) {
                 errors.push({ message: 'Please fill in all required fields' });
             }
-            else if ((spots < 1) || (spots > 32)) {
+            if ((spots < 1) || (spots > 32)) {
                 errors.push({ message: 'Number of players must be between 1-32' });
             }
-            else if (!validator.isLength(description, { min: undefined, max: 1000 })) {
+            if (spotsReserved > (spots - 2)) {
+                errors.push({ message: 'Need at least 1 unreserved spot for public game'});
+            }
+            if (!validator.isLength(description, { min: undefined, max: 1000 })) {
                 errors.push({ message: 'Description must be less than 1000 characters' });
             }
-            else if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
+            if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
                 errors.push({ message: 'Start date cannot be in the past' });
             }
-            else if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
+            if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
                 errors.push({ message: 'End date cannot be before starting date' });
             }
 
@@ -575,11 +683,29 @@ const resolvers = {
             return Game.findOne({
                 where: {
                     id: args.id
-                }
+                },
+                attributes: { 
+                    include: [
+                        [fn("COUNT", col("users.id")), "players"],
+                    ] 
+                },
+                include: [{
+                    model: User, attributes: []
+                }],
             }) 
             .then( game => {
                 if (!game) {
                     const error = new Error('Could not find game');
+                    throw error;
+                }
+
+                if (spots < game.dataValues.players) {
+                    const error = new Error('Claimed player spots cannot be removed');
+                    throw error;
+                }
+
+                if (spotsReserved > (spots - game.dataValues.players)) {
+                    const error = new Error('Claimed player spots cannot be reserved');
                     throw error;
                 }
 
@@ -591,6 +717,7 @@ const resolvers = {
                     }
                 })
                 .then(host => {
+                    const oldSpotsReserved = game.dataValues.spotsReserved;
                     if (host.userId != context.user) {
                         const error = new Error('Only host can edit game');
                         throw error;
@@ -605,6 +732,7 @@ const resolvers = {
                             location: coords ? {type: 'Point', coordinates: coords} : game.location,
                             sport: sport || game.sport,
                             spots: spots || game.spots,
+                            spotsReserved: (spotsReserved != null) ? spotsReserved : game.spotsReserved,
                             description: description || game.description,
                             public: public
                         }) 
@@ -613,6 +741,26 @@ const resolvers = {
                                 const error = new Error('Could not update game');
                                 throw error;
                             } else {
+                                if (result.dataValues.spotsReserved > oldSpotsReserved) {
+                                    // create new reserved player spots
+                                    for (i = 0; i < result.dataValues.spotsReserved - oldSpotsReserved; i++) {
+                                        Player.create({
+                                            gameId: args.id,
+                                            role: 3
+                                        })
+                                    }
+                                } 
+                                else if (result.dataValues.spotsReserved < oldSpotsReserved) {
+                                    // remove unneeded reserved player spots
+                                    for (i = 0; i < oldSpotsReserved - result.dataValues.spotsReserved; i++) {
+                                        Player.destroy({
+                                            where: {
+                                                gameId: args.id,
+                                                role: 3
+                                            }
+                                        })
+                                    }
+                                } 
                                 return result;
                             } 
                         })
@@ -625,8 +773,6 @@ const resolvers = {
             });          
         },
         deleteGame: (parent, args, context) => {
-            const errors = [];
-
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
                 throw error;
@@ -656,21 +802,17 @@ const resolvers = {
                         throw error;
                     } 
                     else {
-                        return Game.destroy({
+                        // Delete the corresponding conversation
+                        return Conversation.destroy({
                             where: {
-                                id: game.id
+                                id: game.conversationId
                             }
                         })
                         .then( rowsDeleted => {
                             if (rowsDeleted === 1) {
-                                // Also deleted the corresponding conversation
-                                return Conversation.destroy({
-                                    where: {
-                                        id: game.conversationId
-                                    }
-                                })
-                                .then( rowsDeleted => {
-                                    if (rowsDeleted === 1) {
+                                return game.destroy()
+                                .then( result => {
+                                    if (result) {
                                         pubsub.publish(GAME_DELETED, {
                                             gameDeleted: args.gameId
                                         })
@@ -694,233 +836,301 @@ const resolvers = {
             });
         },
         joinGame: (parent, args, context) => {
-            const errors = [];
-
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
                 throw error;
             }
 
-            return Player.findOrCreate({
+            return Game.findOne({
                 where: {
-                    userId: context.user,
-                    gameId: args.gameId
+                    id: args.gameId
                 },
-                defaults: {
-                    role: 2,
-                    userId: context.user,
-                    gameId: args.gameId
-                }
+                attributes: { 
+                    include: [
+                        [fn("COUNT", col("users.id")), "players"],
+                        [literal('(spots - COUNT(`users`.`id`) - spotsReserved)'), 'openSpots']
+                    ] 
+                },
+                include: [{
+                    model: User, attributes: []
+                }],
             })
-            .spread( (p, created) => {
-                if (created) {
-                    return Participant.findOrCreate({
-                        where : {
-                            conversationId: args.conversationId,
-                            userId: context.user
-                        },
-                        defaults: {
-                            conversationId: args.conversationId,
-                            userId: context.user
-                        }
-                    })
-                    .spread( (participant, created) => {
-                        if (!created) {
-                            // Participation already from invite, update
-                            return participant.update({
-                                byInvite: false
-                            })
-                            .then(() => {
-                                return Message.create({
-                                    content: "joined",
-                                    author: context.userName,
-                                    type: 4,
-                                    gameId: args.gameId,
-                                    conversationId: args.conversationId,
+            .then( game => {
+                if (game.dataValues.players >= game.dataValues.spots) {
+                    const error = new Error('Cannot join, game is full');
+                    error.code = 401;
+                    throw error;
+                }
+                // Check to see if user was invited - if so they can take a reserved spot
+                return Participant.findOne({
+                    where: {
+                        conversationId: args.conversationId,
+                        userId: context.user
+                    }
+                })
+                .then( participant => {
+                    // Can join either way (game isn't full) - fill a reserved spot
+                    if (participant && participant.invited) {
+                        // Get reserved player spot to update
+                        return Player.findOrCreate({
+                            where: {
+                                role: 3,
+                                gameId: args.gameId
+                            },
+                            defaults: {
+                                role: 2,
+                                gameId: args.gameId,
+                                userId: context.user
+                            }
+                        })
+                        .spread((player, created) => {
+                            // If there was a reserved spot update it
+                            if (!created) {
+                                return player.update({
+                                    role: 2,
                                     userId: context.user
                                 })
                                 .then(() => {
-                                    return User.findOne({
-                                        where: {
-                                            id: context.user
-                                        }
+                                    return game.update({ 
+                                        spotsReserved: game.dataValues.spotsReserved - 1
                                     })
-                                    .then( user => {
+                                    .then(() => {
+                                        return participant.update({ level: 1 })
+                                        .then(() => {
+                                            return Message.create({
+                                                content: "joined",
+                                                author: context.userName,
+                                                type: 4,
+                                                gameId: args.gameId,
+                                                conversationId: args.conversationId,
+                                                userId: context.user
+                                            })
+                                            .then(() => {
+                                                let player = {
+                                                    userId: context.user,
+                                                    name: context.userName,
+                                                    role: 2,
+                                                    profilePic: context.userPic
+                                                };
+            
+                                                pubsub.publish(PLAYER_JOINED, {
+                                                    playerJoined: player, gameId: args.gameId
+                                                });
+                            
+                                                pubsub.publish(NOTIFICATION, { 
+                                                    gameId: args.gameId, currentUser: context.user
+                                                });
+                                                
+                                                return player;
+                                            })
+                                        })
+                                    })
+                                })
+                            // No reserved spots left, taking an open spot
+                            } else {
+                                return participant.update({ level: 1 })
+                                .then(() => {
+                                    return Message.create({
+                                        content: "joined",
+                                        author: context.userName,
+                                        type: 4,
+                                        gameId: args.gameId,
+                                        conversationId: args.conversationId,
+                                        userId: context.user
+                                    })
+                                    .then(() => {
                                         let player = {
                                             userId: context.user,
                                             name: context.userName,
-                                            role: p.dataValues.role,
-                                            profilePic: user.profilePic
+                                            role: 2,
+                                            profilePic: context.userPic
                                         };
     
                                         pubsub.publish(PLAYER_JOINED, {
                                             playerJoined: player, gameId: args.gameId
                                         });
-    
+                    
                                         pubsub.publish(NOTIFICATION, { 
                                             gameId: args.gameId, currentUser: context.user
                                         });
-    
+                                        
+                                        return player;
+                                    })
+                                })
+                            }
+                        })
+                    }
+                    // As long as there are open spots a new participant or interested participant can join
+                    else if (game.dataValues.openSpots > 0) {
+                        if (!participant) {
+                            return Player.create({
+                                role: 2,
+                                userId: context.user,
+                                gameId: args.gameId
+                            })
+                            .then(() => {
+                                return Participant.create({
+                                    level: 1,
+                                    userId: context.user,
+                                    conversationId: args.conversationId
+                                })
+                                .then(() => {
+                                    return Message.create({
+                                        content: "joined",
+                                        author: context.userName,
+                                        type: 4,
+                                        gameId: args.gameId,
+                                        conversationId: args.conversationId,
+                                        userId: context.user
+                                    })
+                                    .then(() => {
+                                        let player = {
+                                            userId: context.user,
+                                            name: context.userName,
+                                            role: 2,
+                                            profilePic: context.userPic
+                                        };
+
+                                        pubsub.publish(PLAYER_JOINED, {
+                                            playerJoined: player, gameId: args.gameId
+                                        });
+                    
+                                        pubsub.publish(NOTIFICATION, { 
+                                            gameId: args.gameId, currentUser: context.user
+                                        });
+                                        
                                         return player;
                                     })
                                 })
                             })
                         }
-                        // Player and conversation participant created
-                        return Message.create({
-                            content: "joined",
-                            author: context.userName,
-                            type: 4,
-                            gameId: args.gameId,
-                            conversationId: args.conversationId,
-                            userId: context.user
-                        })
-                        .then(() => {
-                            return User.findOne({
-                                where: {
-                                    id: context.user
-                                }
+                        else if (participant && participant.level == 2) {
+                            return Player.create({
+                                role: 2,
+                                userId: context.user,
+                                gameId: args.gameId
                             })
-                            .then( user => {
-                                let player = {
-                                    userId: context.user,
-                                    name: context.userName,
-                                    role: p.dataValues.role,
-                                    profilePic: user.profilePic
-                                };
-
-                                pubsub.publish(PLAYER_JOINED, {
-                                    playerJoined: player, gameId: args.gameId
-                                });
-
-                                pubsub.publish(NOTIFICATION, { 
-                                    gameId: args.gameId, currentUser: context.user
-                                });
-
-                                return player;
+                            .then(() => {
+                                return participant.update({ level: 1 })
+                                .then(() => {
+                                    return Message.create({
+                                        content: "joined",
+                                        author: context.userName,
+                                        type: 4,
+                                        gameId: args.gameId,
+                                        conversationId: args.conversationId,
+                                        userId: context.user
+                                    })
+                                    .then(() => {
+                                        let player = {
+                                            userId: context.user,
+                                            name: context.userName,
+                                            role: 2,
+                                            profilePic: context.userPic
+                                        };
+    
+                                        pubsub.publish(PLAYER_JOINED, {
+                                            playerJoined: player, gameId: args.gameId
+                                        });
+                    
+                                        pubsub.publish(NOTIFICATION, { 
+                                            gameId: args.gameId, currentUser: context.user
+                                        });
+                                        
+                                        return player;
+                                    })
+                                })
                             })
-                        })
-                    })
-                }
-                // Interested now joining
-                else if (!created && p.role === 3) {
-                    return p.update({
-                        role: 2
-                    })
-                    .then( (p) => {
-                        return Message.create({
-                            content: "joined",
-                            author: context.userName,
-                            type: 4,
-                            gameId: args.gameId,
-                            conversationId: args.conversationId,
-                            userId: context.user
-                        })
-                        .then(() => {
-                            return User.findOne({
-                                where: {
-                                    id: context.user
-                                }
-                            })
-                            .then( user => {
-                                let player = {
-                                    userId: context.user,
-                                    name: context.userName,
-                                    role: p.dataValues.role,
-                                    profilePic: user.profilePic
-                                };
-
-                                pubsub.publish(PLAYER_JOINED, {
-                                    playerJoined: player, gameId: args.gameId
-                                });
-
-                                pubsub.publish(NOTIFICATION, { 
-                                    gameId: args.gameId, currentUser: context.user
-                                });
-
-                                return player;
-                            })
-                        })
-                    })
-                }
-                else {
-                    const error = new Error('Could not join game');
-                    if (p.role === 2) {
-                        error.message = "Already joined game";
+                        } 
+                        else {
+                            const error = new Error('Already joined');
+                            error.code = 401;
+                            throw error; 
+                        }
                     }
-                    throw error;
-                }
+                    // Else there are no open spots
+                    else {
+                        const error = new Error('Cannot join, no open spots left');
+                        error.code = 401;
+                        throw error;
+                    }
+                })
             })
             .catch(error => {
                 console.log(error);
                 throw error;
             });
         },
-        interestGame: (parent, args, context, req) => {
-
+        // Subscribing to a game adds yourself to the game conversation without committing to being a player
+        subscribe: (parent, args, context, req) => {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
                 throw error;
             }
 
-            return Player.findOrCreate({
+            return Participant.findOrCreate({
                 where: {
-                    userId: user.id,
-                    gameId: args.gameId
+                    conversationId: args.conversationId,
+                    userId: context.user
                 },
                 defaults: {
-                    role: 3,
-                    userId: user.id,
-                    gameId: args.gameId
+                    conversationId: args.conversationId,
+                    userId: context.user,
+                    level: 2
                 }
             })
-            .spread( (player, created) => {
+            .then( (participant, created) => {
                 if (created) {
-                    return Participant.findOrCreate({
-                        where: {
-                            conversationId: args.conversationId,
-                            userId: context.user
-                        },
-                        defaults: {
-                            conversationId: args.conversationId,
-                            userId: context.user
-                        }
-                    })
-                    .then( (participant, created) => {
-                        if (created) {
-                            return true
-                        }
-                        
-                        // Already was a participant by invite, now subscribed
-                        return participant.update({
-                            byInvite: false
-                        })
-                        .then(() => {
-                            return true;
-                        })
-                    }) 
+                    return true
                 }
-                else if (!created & player.role === 2) {
-                    // Joined now just interested
-                    return player.update({
-                        role: 3
+                else if (participant.level == 3) {
+                    // Already was a participant by invite, now subscribed
+                    return participant.update({
+                        level: 2
                     })
-                    .then( () => {
-                        return true
+                    .then(() => {
+                        return true;
                     })
-                }
+                } 
+                // If user is already interested they can't subscribe again
+                // If user is already joined they would have to leave the game as a player to just become interested
                 else {
-                    const error = new Error('Could not subscribe game');
-                    if (p.role === 3) {
-                        error.message = "Already interested in game";
-                    }
+                    const error = new Error('Already subscribed to game');
                     throw error;
-                }
-            })
+                }        
+            }) 
             .catch(error => {
                 console.log(error);
                 throw error;
             });
+        },
+        unsubscribe: (parent, args, context, req) => {
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
+
+            return Participant.findOne({
+                where: {
+                    conversationId: args.conversationId,
+                    userId: context.user
+                }
+            })
+            .then( participant => {
+                participant.destroy()
+                .then( rowsDeleted => {
+                    if (rowsDeleted === 1) {
+                        return true
+                    } else {
+                        const error = new Error('Could not unsubscribe');
+                        throw error;
+                    }
+                })
+            })
+            .catch(error => {
+                console.log(error);
+                throw error;
+            })
         },
         leaveGame: (parent, args, context, req) => {
             const errors = [];

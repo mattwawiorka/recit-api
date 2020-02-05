@@ -56,6 +56,8 @@ const typeDef = `
         loginFb(userInput: userInput): String
         updateUser(userId: ID!, userInput: userInput): User
         deleteUser(userId: ID!): Boolean
+        createTestUser(name: String): Boolean
+        loginTestUser(name: String): String
     }
 `;
 

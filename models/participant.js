@@ -10,8 +10,13 @@ const Participant = sequelize.define('participant',
       allowNull: false,
       primaryKey: true
     },
-    byInvite: {
-      type: Sequelize.BOOLEAN
+    invited: {
+      type: Sequelize.BOOLEAN,
+      defaultValue: false
+    },
+    level: {
+      type: Sequelize.INTEGER,
+      defaultValue: 1
     },
     hasUpdate: {
       type: Sequelize.BOOLEAN,
@@ -26,5 +31,12 @@ const Participant = sequelize.define('participant',
     ]
   }
 );
+
+/**
+ * Level:
+ *      1 - Joined
+ *      2 - Interested
+ *      3 - Invited
+ */
 
 module.exports = Participant;
