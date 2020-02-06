@@ -394,7 +394,8 @@ const resolvers = {
                                 const token = jwt.sign(
                                     {
                                         userId: user.id.toString(),
-                                        userName: user.name.toString()
+                                        userName: user.name.toString(),
+                                        userPic: user.profilePic.toString()
                                     }, 
                                     'secret', 
                                     // { expiresIn: '24h' }
@@ -439,7 +440,8 @@ const resolvers = {
                 const token = jwt.sign(
                     {
                         userId: user.id.toString(),
-                        userName: user.name.toString()
+                        userName: user.name.toString(),
+                        userPic: user.profilePic.toString()
                     }, 
                     'secret', 
                     // { expiresIn: '24h' }

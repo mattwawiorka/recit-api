@@ -3,7 +3,6 @@ const Message = require('../models/message');
 const User = require('../models/user');
 const Conversation = require('../models/conversation');
 const Participant = require('../models/participant');
-const Player = require('../models/player');
 const { PubSub, withFilter } = require('apollo-server');
 
 const pubsub = new PubSub();

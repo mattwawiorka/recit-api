@@ -10,7 +10,7 @@ const Player = sequelize.define('player',
       allowNull: false,
       primaryKey: true
     },
-    role: {
+    level: {
       type: Sequelize.INTEGER,
       allowNull: false,
       defaultValue: "2"
@@ -19,7 +19,7 @@ const Player = sequelize.define('player',
 );
 
 /**
- * Role:
+ * Level:
  *      1 - Host
  *      2 - Joined
  *      3 - Reserved

@@ -13,8 +13,8 @@ const pubsub = new PubSub();
 
 const GAME_ADDED = 'GAME_ADDED';
 const GAME_DELETED = 'GAME_DELETED';
-const PLAYER_JOINED = 'PLAYER_JOINED';
-const PLAYER_LEFT = 'PLAYER_LEFT';
+const NEW_PARTICIPANT = 'NEW_PARTICIPANT';
+const PARTICIPANT_LEFT = 'PARTICIPANT_LEFT';
 const NOTIFICATION = 'NOTIFICATION';
 
 GAMES_PER_PAGE = 15;
@@ -48,17 +48,17 @@ const resolvers = {
                 }
             )
         },
-        playerJoined: {
+        participantJoined: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(PLAYER_JOINED),
+                () => pubsub.asyncIterator(NEW_PARTICIPANT),
                 (payload, variables) => {
                     return variables.gameId === payload.gameId;
                 }
             )
         },
-        playerLeft: {
+        participantLeft: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(PLAYER_LEFT),
+                () => pubsub.asyncIterator(PARTICIPANT_LEFT),
                 (payload, variables) => {
                     return variables.gameId === payload.gameId;
                 }
@@ -289,13 +289,14 @@ const resolvers = {
             })
             .then( players => {
                 return players.map( p => {
-                    if (p.role == 3) {
-                        let player = {
-                            role: p.role,
+                    if (p.level == 3) {
+                        let participant = {
+                            level: p.level,
                             profilePic: 'http://localhost:8080/images/profile-blank.png',
-                            isMe: false
+                            isMe: false,
+                            player: true
                         };
-                        return player;
+                        return participant;
                     }
                     else {
                         return User.findOne({
@@ -310,14 +311,15 @@ const resolvers = {
                                 throw error;
                             }
     
-                            let player = {
+                            let participant = {
                                 userId: user.id, 
                                 name: user.name,
-                                role: p.role,
+                                level: p.level,
                                 profilePic: user.profilePic,
-                                isMe: user.id == context.user
+                                isMe: user.id == context.user,
+                                player: true
                             };
-                            return player;
+                            return participant;
                         })
                     }
                 })
@@ -333,7 +335,7 @@ const resolvers = {
                 raw: true,
                 where: {
                     gameId: args.gameId,
-                    role: 1
+                    level: 1
                 }
             })
             .then(host => {
@@ -342,7 +344,7 @@ const resolvers = {
                     throw error;
                 } else {
                     return { 
-                        role: 1,
+                        level: 1,
                         userId: host.userId,
                         isMe: host.userId == context.user 
                     };
@@ -412,7 +414,7 @@ const resolvers = {
                     edges.push({
                         node: player.game,
                         cursor: player.game.dateTime,
-                        role: player.role
+                        level: player.level
                     });
 
                     if (index === result.rows.length - 1) {
@@ -430,7 +432,7 @@ const resolvers = {
                 };
             })
         },
-        participants: (parent, args, context) => {
+        watchers: (parent, args, context) => {
             return Participant.findAll({
                 where: {
                     conversationId: args.conversationId,
@@ -592,7 +594,7 @@ const resolvers = {
                 .then( game => {
                     // Create the host player
                     return Player.create({
-                        role: 1,
+                        level: 1,
                         gameId: game.id,
                         userId: context.user
                     })
@@ -628,7 +630,7 @@ const resolvers = {
                             if (spotsReserved > 0) {
                                 for (i = 0; i < spotsReserved; i++) {
                                     Player.create({
-                                        role: 3,
+                                        level: 3,
                                         gameId: game.id
                                     })
                                 }
@@ -713,7 +715,7 @@ const resolvers = {
                     raw: true,
                     where: {
                         gameId: game.id,
-                        role: 1
+                        level: 1
                     }
                 })
                 .then(host => {
@@ -746,7 +748,7 @@ const resolvers = {
                                     for (i = 0; i < result.dataValues.spotsReserved - oldSpotsReserved; i++) {
                                         Player.create({
                                             gameId: args.id,
-                                            role: 3
+                                            level: 3
                                         })
                                     }
                                 } 
@@ -756,7 +758,7 @@ const resolvers = {
                                         Player.destroy({
                                             where: {
                                                 gameId: args.id,
-                                                role: 3
+                                                level: 3
                                             }
                                         })
                                     }
@@ -793,7 +795,7 @@ const resolvers = {
                     raw: true,
                     where: {
                         gameId: game.id,
-                        role: 1
+                        level: 1
                     }
                 })
                 .then(host => {
@@ -874,11 +876,11 @@ const resolvers = {
                         // Get reserved player spot to update
                         return Player.findOrCreate({
                             where: {
-                                role: 3,
+                                level: 3,
                                 gameId: args.gameId
                             },
                             defaults: {
-                                role: 2,
+                                level: 2,
                                 gameId: args.gameId,
                                 userId: context.user
                             }
@@ -887,7 +889,7 @@ const resolvers = {
                             // If there was a reserved spot update it
                             if (!created) {
                                 return player.update({
-                                    role: 2,
+                                    level: 2,
                                     userId: context.user
                                 })
                                 .then(() => {
@@ -906,22 +908,24 @@ const resolvers = {
                                                 userId: context.user
                                             })
                                             .then(() => {
-                                                let player = {
+                                                let participant = {
                                                     userId: context.user,
                                                     name: context.userName,
-                                                    role: 2,
-                                                    profilePic: context.userPic
+                                                    level: 2,
+                                                    profilePic: context.userPic,
+                                                    invited: true,
+                                                    player: true
                                                 };
             
-                                                pubsub.publish(PLAYER_JOINED, {
-                                                    playerJoined: player, gameId: args.gameId
+                                                pubsub.publish(NEW_PARTICIPANT, {
+                                                    participantJoined: participant, gameId: args.gameId
                                                 });
                             
                                                 pubsub.publish(NOTIFICATION, { 
-                                                    gameId: args.gameId, currentUser: context.user
+                                                    conversationId: args.conversationId, currentUser: context.user
                                                 });
                                                 
-                                                return player;
+                                                return participant;
                                             })
                                         })
                                     })
@@ -939,22 +943,23 @@ const resolvers = {
                                         userId: context.user
                                     })
                                     .then(() => {
-                                        let player = {
+                                        let participant = {
                                             userId: context.user,
                                             name: context.userName,
-                                            role: 2,
-                                            profilePic: context.userPic
+                                            level: 2,
+                                            profilePic: context.userPic,
+                                            player: true
                                         };
     
-                                        pubsub.publish(PLAYER_JOINED, {
-                                            playerJoined: player, gameId: args.gameId
+                                        pubsub.publish(NEW_PARTICIPANT, {
+                                            participantJoined: participant, gameId: args.gameId
                                         });
                     
                                         pubsub.publish(NOTIFICATION, { 
-                                            gameId: args.gameId, currentUser: context.user
+                                            conversationId: args.conversationId, currentUser: context.user
                                         });
                                         
-                                        return player;
+                                        return participant;
                                     })
                                 })
                             }
@@ -964,7 +969,7 @@ const resolvers = {
                     else if (game.dataValues.openSpots > 0) {
                         if (!participant) {
                             return Player.create({
-                                role: 2,
+                                level: 2,
                                 userId: context.user,
                                 gameId: args.gameId
                             })
@@ -984,29 +989,30 @@ const resolvers = {
                                         userId: context.user
                                     })
                                     .then(() => {
-                                        let player = {
+                                        let participant = {
                                             userId: context.user,
                                             name: context.userName,
-                                            role: 2,
-                                            profilePic: context.userPic
+                                            level: 2,
+                                            profilePic: context.userPic,
+                                            player: true
                                         };
 
-                                        pubsub.publish(PLAYER_JOINED, {
-                                            playerJoined: player, gameId: args.gameId
+                                        pubsub.publish(NEW_PARTICIPANT, {
+                                            participantJoined: participant, gameId: args.gameId
                                         });
                     
                                         pubsub.publish(NOTIFICATION, { 
-                                            gameId: args.gameId, currentUser: context.user
+                                            conversationId: args.conversationId, currentUser: context.user
                                         });
                                         
-                                        return player;
+                                        return participant;
                                     })
                                 })
                             })
                         }
                         else if (participant && participant.level == 2) {
                             return Player.create({
-                                role: 2,
+                                level: 2,
                                 userId: context.user,
                                 gameId: args.gameId
                             })
@@ -1022,22 +1028,24 @@ const resolvers = {
                                         userId: context.user
                                     })
                                     .then(() => {
-                                        let player = {
+                                        let participant = {
                                             userId: context.user,
                                             name: context.userName,
-                                            role: 2,
-                                            profilePic: context.userPic
+                                            level: 2,
+                                            profilePic: context.userPic,
+                                            player: true,
+                                            wasInterested: true
                                         };
     
-                                        pubsub.publish(PLAYER_JOINED, {
-                                            playerJoined: player, gameId: args.gameId
+                                        pubsub.publish(NEW_PARTICIPANT, {
+                                            participantJoined: participant, gameId: args.gameId
                                         });
                     
                                         pubsub.publish(NOTIFICATION, { 
-                                            gameId: args.gameId, currentUser: context.user
+                                            conversationId: args.conversationId, currentUser: context.user
                                         });
                                         
-                                        return player;
+                                        return participant;
                                     })
                                 })
                             })
@@ -1079,17 +1087,69 @@ const resolvers = {
                     level: 2
                 }
             })
-            .then( (participant, created) => {
+            .spread( (participant, created) => {
                 if (created) {
-                    return true
+                    return Message.create({
+                        content: "is interested",
+                        author: context.userName,
+                        type: 4,
+                        gameId: args.gameId,
+                        conversationId: args.conversationId,
+                        userId: context.user
+                    })
+                    .then(() => {
+                        let participant = {
+                            userId: context.user,
+                            name: context.userName,
+                            level: 2,
+                            profilePic: context.userPic,
+                            player: false
+                        };
+
+                        pubsub.publish(NEW_PARTICIPANT, {
+                            participantJoined: participant, gameId: args.gameId
+                        });
+    
+                        pubsub.publish(NOTIFICATION, { 
+                            conversationId: args.conversationId, currentUser: context.user
+                        });
+                        
+                        return participant;
+                    })
                 }
-                else if (participant.level == 3) {
+                else if (participant && participant.level == 3) {
                     // Already was a participant by invite, now subscribed
                     return participant.update({
                         level: 2
                     })
                     .then(() => {
-                        return true;
+                        return Message.create({
+                            content: "is interested",
+                            author: context.userName,
+                            type: 4,
+                            gameId: args.gameId,
+                            conversationId: args.conversationId,
+                            userId: context.user
+                        })
+                        .then(() => {
+                            let participant = {
+                                userId: context.user,
+                                name: context.userName,
+                                level: 2,
+                                profilePic: context.userPic,
+                                player: false
+                            };
+    
+                            pubsub.publish(NEW_PARTICIPANT, {
+                                participantJoined: participant, gameId: args.gameId
+                            });
+        
+                            pubsub.publish(NOTIFICATION, { 
+                                conversationId: args.conversationId, currentUser: context.user
+                            });
+                            
+                            return participant;
+                        })
                     })
                 } 
                 // If user is already interested they can't subscribe again
@@ -1117,10 +1177,41 @@ const resolvers = {
                 }
             })
             .then( participant => {
+                if (participant.level == 1) {
+                    const error = new Error('Player cannot unsubscribe, must leave game instead');
+                    throw error;
+                }
+
                 participant.destroy()
-                .then( rowsDeleted => {
-                    if (rowsDeleted === 1) {
-                        return true
+                .then( result => {
+                    if (result) {
+                        return Message.create({
+                            content: "unsubscribed",
+                            author: context.userName,
+                            type: 4,
+                            gameId: args.gameId,
+                            conversationId: args.conversationId,
+                            userId: context.user
+                        })
+                        .then(() => {
+                            let participant = {
+                                userId: context.user,
+                                name: context.userName,
+                                level: 2,
+                                profilePic: context.userPic,
+                                player: false
+                            };
+    
+                            pubsub.publish(PARTICIPANT_LEFT, {
+                                participantLeft: participant, gameId: args.gameId
+                            });
+        
+                            pubsub.publish(NOTIFICATION, { 
+                                conversationId: args.conversationId, currentUser: context.user
+                            });
+                            
+                            return participant;
+                        })
                     } else {
                         const error = new Error('Could not unsubscribe');
                         throw error;
@@ -1152,6 +1243,11 @@ const resolvers = {
                     throw error;
                 }
 
+                if (player.level == 1) {
+                    const error = new Error('Host cannot leave game');
+                    throw error;
+                }
+
                 return player.destroy()
                 .then( result => {
                     if (result) {
@@ -1172,12 +1268,12 @@ const resolvers = {
                                     userId: context.user
                                 })
                                 .then(() => {
-                                    pubsub.publish(PLAYER_LEFT, {
-                                        playerLeft: { userId: context.user }, gameId: args.gameId
+                                    pubsub.publish(PARTICIPANT_LEFT, {
+                                        participantLeft: { userId: context.user, player: true, userId: context.user }, gameId: args.gameId
                                     });
 
                                     pubsub.publish(NOTIFICATION, { 
-                                        gameId: args.gameId, currentUser: context.user
+                                        conversationId: args.conversationId, currentUser: context.user
                                     });
 
                                     return { userId: context.user }

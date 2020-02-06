@@ -29,7 +29,7 @@ const typeDef = `
     type Edge {
         cursor: String
         node: Game
-        role: Int
+        level: Int
     }
     
     type PageInfo {
@@ -43,27 +43,15 @@ const typeDef = `
         pageInfo: PageInfo
     }
 
-    interface Participant {
-        userId: ID
-        name: String
-        profilePic: String
-        isMe: Boolean
-    }
-
-    type Player implements Participant {
-        userId: ID
-        name: String
-        profilePic: String
-        isMe: Boolean
-        role: Int!
-    }
-
-    type Watcher implements Participant {
+    type Participant {
         userId: ID
         name: String
         profilePic: String
         isMe: Boolean
         level: Int!
+        invited: Boolean
+        player: Boolean
+        wasInterested: Boolean
     }
 
     input gameInput {
@@ -84,19 +72,19 @@ const typeDef = `
     type Query {
         games(cursor: String, sport: String, startDate: String, openSpots: String, bounds: [Float], sortOrder: String): GameFeed
         game(id: ID!): Game!
-        players(gameId: ID!): [Player]
-        participants(conversationId: ID!): [Watcher]
-        host(gameId: ID!): Player
+        players(gameId: ID!): [Participant]
+        watchers(conversationId: ID!): [Participant]
+        host(gameId: ID!): Participant
         userGames(userId: ID, cursor: String, pastGames: Boolean): GameFeed
         topSport(userId: ID): String
     }
 
     type Mutation {
         createGame(gameInput: gameInput): Game
-        joinGame(gameId: ID!, conversationId: ID!): Player
-        subscribe(conversationId: ID!): Boolean
-        unsubscribe(conversationId: ID!): Boolean
-        leaveGame(gameId: ID!, conversationId: ID!): Player
+        joinGame(gameId: ID!, conversationId: ID!): Participant
+        subscribe(gameId: ID!, conversationId: ID!): Participant
+        unsubscribe(gameId: ID!, conversationId: ID!): Participant
+        leaveGame(gameId: ID!, conversationId: ID!): Participant
         updateGame(id: ID!, gameInput: gameInput): Game
         deleteGame(gameId: ID!): Boolean
     }
@@ -104,8 +92,8 @@ const typeDef = `
     type Subscription {
         gameAdded(cursor: String, numGames: Int, bounds: [Float]): Edge
         gameDeleted(loadedGames: [ID]): ID
-        playerJoined(gameId: ID!): Player
-        playerLeft(gameId: ID!): Player
+        participantJoined(gameId: ID!): Participant
+        participantLeft(gameId: ID!): Participant
         notificationGame(userId: ID): Boolean
     }
 `;
