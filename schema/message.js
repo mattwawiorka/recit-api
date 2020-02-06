@@ -20,6 +20,7 @@ const typeDef = `
         conversation: String
         forGame: Boolean
         isNew: Boolean
+        userPic: String
     }
 
     type MessageFeed {

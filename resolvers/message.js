@@ -65,10 +65,10 @@ const resolvers = {
 
             console.log(pubsub.ee.listenerCount('MESSAGE_ADDED'))
 
-            if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
-                throw error;
-            }
+            // if (!context.isAuth) {
+            //     const error = new Error('Unauthorized user');
+            //     throw error;
+            // }
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
 
@@ -79,10 +79,6 @@ const resolvers = {
                     updatedAt: {
                         [Op.lt]: cursor
                     },
-                    // Should joining/leaving notifications be shown?
-                    // type: {
-                    //     [Op.ne]: 4
-                    // }
                 },
                 limit: MESSAGES_PER_PAGE,
                 order: [
@@ -93,25 +89,44 @@ const resolvers = {
             return Message.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor;
-                result.rows.map( (message, index) => {
-                    edges.push({
-                        node: message,
-                        cursor: message.updatedAt,
-                        isOwner: message.userId == context.user
-                    }); 
-
-                    if (index === result.rows.length - 1) {
-                        endCursor = message.updatedAt;
+                return Promise.all(result.rows.map( (message, index) => {
+                    return User.findOne({
+                        where: {
+                            id: message.userId
+                        }
+                    })
+                    .then(user => {
+                        edges.push({
+                            node: message,
+                            cursor: message.updatedAt,
+                            isOwner: message.userId == context.user,
+                            userPic: user.profilePic
+                        }); 
+    
+                        if (index === result.rows.length - 1) {
+                            endCursor = message.updatedAt;
+                        }
+                    })
+                }))
+                .then(() => {
+                    sortedEdges = edges.sort( (a,b) => {
+                        let comparison;
+                        if (a.node.updatedAt < b.node.updatedAt) {
+                            comparison = 1;
+                        } else {
+                            comparison = -1;
+                        }
+                        return comparison;
+                    });
+                    return {
+                        totalCount: result.count,
+                        edges: sortedEdges,
+                        pageInfo: {
+                            endCursor: endCursor,
+                            hasNextPage: result.rows.length === MESSAGES_PER_PAGE
+                        }
                     }
-                });
-                return {
-                    totalCount: result.count,
-                    edges: edges,
-                    pageInfo: {
-                        endCursor: endCursor,
-                        hasNextPage: result.rows.length === MESSAGES_PER_PAGE
-                    }
-                }
+                })
             })
             .catch(error => {
                 console.log(error);

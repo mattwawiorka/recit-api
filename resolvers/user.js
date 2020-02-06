@@ -31,7 +31,8 @@ const resolvers = {
 
             return {
                 id: context.user,
-                name: context.userName
+                name: context.userName,
+                profilePic: context.userPic
             }
         },
         user: (parent, args, context) => {
