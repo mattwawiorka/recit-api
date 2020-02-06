@@ -3,9 +3,24 @@ const Message = require('../models/message');
 const User = require('../models/user');
 const Conversation = require('../models/conversation');
 const Participant = require('../models/participant');
-const { PubSub, withFilter } = require('apollo-server');
+const { withFilter } = require('apollo-server');
 
-const pubsub = new PubSub();
+
+// Initialize pubsub on Redis server
+const { RedisPubSub } = require('graphql-redis-subscriptions');
+const Redis = require('ioredis');
+const options = {
+    host: '127.0.0.1',
+    port: '6379',
+    retryStrategy: times => {
+      // reconnect after
+      return Math.min(times * 50, 2000);
+    }
+};
+const pubsub = new RedisPubSub({
+    publisher: new Redis(options),
+    subscriber: new Redis(options)
+});
 
 const MESSAGE_ADDED = 'MESSAGE_ADDED';
 const MESSAGE_UPDATED = 'MESSAGE_UPDATED';
@@ -63,12 +78,10 @@ const resolvers = {
         // Given a conversation get its messages, no notifications
         messages: (parent, args, context) => {
 
-            console.log(pubsub.ee.listenerCount('MESSAGE_ADDED'))
-
-            // if (!context.isAuth) {
-            //     const error = new Error('Unauthorized user');
-            //     throw error;
-            // }
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
 
@@ -253,7 +266,8 @@ const resolvers = {
                 pubsub.publish(MESSAGE_ADDED, {
                     messageAdded: {
                         node: message.dataValues,
-                        cursor: message.dataValues.updatedAt
+                        cursor: message.dataValues.updatedAt,
+                        userPic: context.userPic
                     }
                 })
 

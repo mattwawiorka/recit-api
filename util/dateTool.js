@@ -128,6 +128,17 @@ const dateTool = {
         d.setDate(d.getDate() + offset);
         return d;
     },
+    getStartofDay: (dateTime) => {
+        const d = new Date(dateTime);
+        d.setHours(0,0,0,0)
+        return d;
+    },
+    getEndofDay: (dateTime) => {
+        const d = new Date(dateTime);
+        d.setHours(0,0,0,0)
+        d.setDate(d.getDate() + 1);
+        return d;
+    },
 }
 
 module.exports = dateTool;

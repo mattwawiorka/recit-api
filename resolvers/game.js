@@ -7,9 +7,23 @@ const Participant = require('../models/participant');
 const Message = require('../models/message');
 const validator = require('validator');
 const dateTool = require('../util/dateTool');
-const { PubSub, withFilter } = require('apollo-server');
+const { withFilter } = require('apollo-server');
 
-const pubsub = new PubSub();
+// Initialize pubsub on Redis server
+const { RedisPubSub } = require('graphql-redis-subscriptions');
+const Redis = require('ioredis');
+const options = {
+    host: '127.0.0.1',
+    port: '6379',
+    retryStrategy: times => {
+      // reconnect after
+      return Math.min(times * 50, 2000);
+    }
+};
+const pubsub = new RedisPubSub({
+    publisher: new Redis(options),
+    subscriber: new Redis(options)
+});
 
 const GAME_ADDED = 'GAME_ADDED';
 const GAME_DELETED = 'GAME_DELETED';
@@ -90,8 +104,6 @@ const resolvers = {
         // Get public games feed for your area 
         // sql_mode = '' for games feed to work 
         games: (parent, args, context) => {
-
-            console.log('games query',pubsub.ee.listenerCount('GAME_ADDED'))
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
             let sport = args.sport ? args.sport : "ALL"
@@ -548,7 +560,7 @@ const resolvers = {
                     field: 'spots' 
                 });
             }
-            if (!validator.isLength(description, { min:undefined, max: 1000 })) {
+            if (!validator.isLength(description, { min: undefined, max: 1000 })) {
                 errors.push({ 
                     message: 'Description must be less than 1000 characters',
                     field: 'description' 
@@ -574,74 +586,103 @@ const resolvers = {
                 throw error;
             }
 
-            // Each game gets a corresponding conversation
-            return Conversation.create({ title: title })
-            .then( conversation => {
-                return Game.create({
-                    title: title,
-                    dateTime: dateTime,
-                    endDateTime: endDateTime,
-                    venue: venue,
-                    address: address,
-                    location: { type: 'Point', coordinates: coords },
-                    sport: sport,
-                    spots: spots,
-                    spotsReserved: spotsReserved,
-                    description: description,
-                    public: public,
-                    conversationId: conversation.id
-                })
-                .then( game => {
-                    // Create the host player
-                    return Player.create({
-                        level: 1,
-                        gameId: game.id,
-                        userId: context.user
-                    })
-                    .then(() => {
-                        // Add the host as a participant in the game conversation
-                        return Participant.create({
-                            conversationId: conversation.id,
-                            userId: context.user,
-                            hasUpdate: false
+            // Check if user is already hosting a game during this time period
+            return Player.findAndCountAll({
+                where: {
+                    userId: context.user,
+                    level: 1
+                },
+                include: [
+                    {
+                        model: Game,
+                        // Find how many games user is hosting on this day
+                        // TODO: Get overlap prevention working
+                        where: {
+                            dateTime: {
+                                [Op.gte]: dateTool.getStartofDay(dateTime),
+                                [Op.lte]: dateTool.getEndofDay(dateTime)
+                            }
+                        }
+                    }
+                ],
+            })
+            .then( result => {
+                if (result.count > 2) {
+                    const error = new Error('Cannot host more than 3 games in one day');
+                    error.code = 401;
+                    throw error;
+                } 
+                else {
+                    // Each game gets a corresponding conversation
+                    return Conversation.create({ title: title })
+                    .then( conversation => {
+                        return Game.create({
+                            title: title,
+                            dateTime: dateTime,
+                            endDateTime: endDateTime,
+                            venue: venue,
+                            address: address,
+                            location: { type: 'Point', coordinates: coords },
+                            sport: sport,
+                            spots: spots,
+                            spotsReserved: spotsReserved,
+                            description: description,
+                            public: public,
+                            conversationId: conversation.id
                         })
-                        .then(() => {
-                            if (game.dataValues.public) {
-                                const gameAdded = {
-                                    gameAdded: {
-                                        cursor: game.dataValues.dateTime,
-                                        node: {
-                                            id: game.dataValues.id,
-                                            title: game.dataValues.title,
-                                            sport: game.dataValues.sport,
-                                            venue: game.dataValues.venue,
-                                            dateTime: game.dataValues.dateTime,
-                                            location: game.dataValues.location,
-                                            spots: game.dataValues.spots,
-                                            players: game.dataValues.spots - 1
+                        .then( game => {
+                            // Create the host player
+                            return Player.create({
+                                level: 1,
+                                gameId: game.id,
+                                userId: context.user
+                            })
+                            .then(() => {
+                                // Add the host as a participant in the game conversation
+                                return Participant.create({
+                                    conversationId: conversation.id,
+                                    userId: context.user,
+                                    hasUpdate: false
+                                })
+                                .then(() => {
+                                    if (game.dataValues.public) {
+                                        const gameAdded = {
+                                            gameAdded: {
+                                                cursor: game.dataValues.dateTime,
+                                                node: {
+                                                    id: game.dataValues.id,
+                                                    title: game.dataValues.title,
+                                                    sport: game.dataValues.sport,
+                                                    venue: game.dataValues.venue,
+                                                    dateTime: game.dataValues.dateTime,
+                                                    location: game.dataValues.location,
+                                                    spots: game.dataValues.spots,
+                                                    players: game.dataValues.spots - 1
+                                                }
+                                            }
+                                        };
+
+                                        pubsub.publish(GAME_ADDED, gameAdded);
+                                    }
+                                    
+                                    // Create reserved player spots
+                                    if (spotsReserved > 0) {
+                                        for (i = 0; i < spotsReserved; i++) {
+                                            Player.create({
+                                                level: 3,
+                                                gameId: game.id
+                                            })
                                         }
                                     }
-                                };
-
-                                pubsub.publish(GAME_ADDED, gameAdded);
-                            }
-                            
-                            // Create reserved player spots
-                            if (spotsReserved > 0) {
-                                for (i = 0; i < spotsReserved; i++) {
-                                    Player.create({
-                                        level: 3,
-                                        gameId: game.id
-                                    })
-                                }
-                            }
-                            return game;
+                                    return game;
+                                });
+                            });
                         });
                     });
-                });
+                }
             })
             .catch(error => {
-                console.log(error)
+                // console.log(error)
                 throw error;
             });
         },
