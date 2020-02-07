@@ -102,7 +102,6 @@ const resolvers = {
     },
     Query: {
         // Get public games feed for your area 
-        // sql_mode = '' for games feed to work 
         games: (parent, args, context) => {
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
@@ -139,18 +138,11 @@ const resolvers = {
                 include: [{
                     model: User, attributes: []
                 }],
+                order: [
+                    ["dateTime", "ASC"]
+                ],
                 group: ['id', 'spots', 'spotsReserved'],
             };
-
-            if (args.sortOrder === "SPOTS") {
-                options.order = [
-                    [literal('(spots - COUNT(`users`.`id`) - spotsReserved)'), 'DESC']
-                ]
-            } else {
-                options.order = [
-                    ["dateTime", "ASC"]
-                ]
-            }
 
             if (sport !== "ALL") {
                 options.where.sport = sport 
@@ -188,17 +180,8 @@ const resolvers = {
                 }
             }
 
-            if (args.openSpots === "1") {
-                options.having = literal('(spots - COUNT(`users`.`id`) - spotsReserved) > 0')
-            }
-            else if (args.openSpots === "2") {
-                options.having = literal('(spots - COUNT(`users`.`id`) - spotsReserved) > 1')
-            }
-            else if (args.openSpots === "3") {
-                options.having = literal('(spots - COUNT(`users`.`id`) - spotsReserved) > 2')
-            }
-            else if (args.openSpots === "4") {
-                options.having = literal('(spots - COUNT(`users`.`id`) - spotsReserved) > 3')
+            if (args.openSpots) {
+                options.having = literal('(spots - COUNT(`users`.`id`) - spotsReserved) > (' + args.openSpots + ' - 1)')
             }
             
             // Find all games not in the past
@@ -379,7 +362,10 @@ const resolvers = {
             }
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
-            let direction, order, limit;
+            let direction, order;
+            // Only preview the first 3 of your upcoming games at a time
+            // Show 3 past games at a time 
+            let limit = 3;
 
             // Default direction = future
             if (args.pastGames) {
@@ -389,7 +375,6 @@ const resolvers = {
                 order = [
                     [literal('game.dateTime'), 'DESC']
                 ];
-                limit = GAMES_PER_PAGE;
             } else {
                 direction = {
                     [Op.gt]: cursor
@@ -397,9 +382,6 @@ const resolvers = {
                 order = [
                     [literal('game.dateTime'), 'ASC']
                 ];
-
-                // Only preview the first 3 of your upcoming games at a time 
-                limit = 3;
             }
 
             let options = {
@@ -414,6 +396,7 @@ const resolvers = {
                         }
                     }
                 ],
+                // Only preview the first 3 of your upcoming games at a time 
                 limit: limit,
                 order: order
             }

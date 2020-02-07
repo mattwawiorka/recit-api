@@ -1,4 +1,4 @@
-const { Op, fn, col, literal } = require('sequelize');
+const { Op, fn, col, literal, where } = require('sequelize');
 const User = require('../models/user');
 const jwt = require('jsonwebtoken');
 const API = require('../api.json');
@@ -65,6 +65,11 @@ const resolvers = {
                 throw error;
             }
 
+            console.log(args.cursor)
+
+            // 10 Users returned at a time
+            let limit = 10;
+
             let options = {
                 where: {
                     name: {
@@ -74,7 +79,7 @@ const resolvers = {
                         [Op.ne]: context.user
                     }
                 },
-                limit: 15,
+                limit: limit,
                 attributes: {}
             }
 
@@ -93,7 +98,33 @@ const resolvers = {
                 options.order = literal('distance ASC');
             }
 
-            return User.findAll(options);
+            // TODO: Figure this out
+            if (args.cursor > 0) {
+                // options.having = literal(`ST_Distance('loginLocation', Point(47.624027, -122.295116)) > ${args.cursor}`)
+                // options.having = {distance: {gte: 10}}
+            }
+
+            return User.findAndCountAll(options)
+            .then( result => {
+                let edges = [], endCursor; 
+                result.rows.map( (user, index) => {
+                    edges.push({
+                        cursor: user.dataValues.distance,
+                        node: user
+                    });
+
+                    if (index === result.rows.length - 1) {
+                        endCursor = user.dataValues.distance;
+                    }
+                })
+                return {
+                    edges: edges,
+                    pageInfo: {
+                        endCursor: endCursor,
+                        hasNextPage: result.count.length > limit
+                    }
+                } 
+            });
         }
     },
     Mutation: {
@@ -423,7 +454,7 @@ const resolvers = {
                 name: args.name,
                 dob: '08/27/1993',
                 gender: 'male',
-                loginLocation: { type: 'Point', coordinates: [47.7169839910907, -122.32040939782564] },
+                loginLocation: { type: 'Point', coordinates: [45.5202471, -122.6741949] },
                 city: 'Seattle, WA, USA'
             })
             .then(() => {

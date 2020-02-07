@@ -39,12 +39,19 @@ const typeDef = `
     type UserEdge {
         node: User
         isMe: Boolean
+        cursor: Float
     } 
+
+    type UserFeed {
+        totalCount: Int
+        edges: [UserEdge]
+        pageInfo: PageInfo
+    }
 
     type Query {
         users: [User!]!
         user(userId: ID!): UserEdge!
-        findUser(name: String!, location: [Float]): [User]
+        findUser(name: String!, location: [Float], cursor: String): UserFeed
         whoAmI: User
     }
 
