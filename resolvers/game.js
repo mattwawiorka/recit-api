@@ -180,13 +180,14 @@ const resolvers = {
                 }
             }
 
-            if (args.openSpots) {
+            if (args.openSpots > 0) {
                 options.having = literal('(spots - COUNT(`users`.`id`) - spotsReserved) > (' + args.openSpots + ' - 1)')
             }
             
             // Find all games not in the past
             return Game.findAndCountAll(options)
             .then( result => {
+                console.log(result)
                 let edges = [], endCursor; 
                 result.rows.map( (game, index) => {
                     edges.push({

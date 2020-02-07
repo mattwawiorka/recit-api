@@ -410,6 +410,7 @@ const resolvers = {
                                 messageAdded: {
                                     node: message.dataValues,
                                     cursor: message.dataValues.updatedAt,
+                                    userPic: context.userPic
                                 }
                             });
     

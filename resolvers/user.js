@@ -65,8 +65,6 @@ const resolvers = {
                 throw error;
             }
 
-            console.log(args.cursor)
-
             // 10 Users returned at a time
             let limit = 10;
 
@@ -80,7 +78,7 @@ const resolvers = {
                     }
                 },
                 limit: limit,
-                attributes: {}
+                attributes: {},
             }
 
             if (args.location) {
@@ -100,14 +98,22 @@ const resolvers = {
 
             // TODO: Figure this out
             if (args.cursor > 0) {
-                // options.having = literal(`ST_Distance('loginLocation', Point(47.624027, -122.295116)) > ${args.cursor}`)
-                // options.having = {distance: {gte: 10}}
+                options.where = {
+                    name: {
+                        [Op.like]: '%' + args.name + '%'
+                    },
+                    id : {
+                        [Op.ne]: context.user
+                    },
+                    [Op.and]: literal('ST_Distance(`loginLocation`, Point(' + args.location[0] + ', ' + args.location[1] + ')) > ' + args.cursor)
+                }
             }
 
             return User.findAndCountAll(options)
             .then( result => {
                 let edges = [], endCursor; 
                 result.rows.map( (user, index) => {
+                    console.log(user.dataValues.distance)
                     edges.push({
                         cursor: user.dataValues.distance,
                         node: user
@@ -121,7 +127,7 @@ const resolvers = {
                     edges: edges,
                     pageInfo: {
                         endCursor: endCursor,
-                        hasNextPage: result.count.length > limit
+                        hasNextPage: result.count > limit
                     }
                 } 
             });
@@ -270,12 +276,24 @@ const resolvers = {
                             .then(response => {
                                 return response.json()
                                 .then(result => {
-                                    console.log(result)
-                                    return user.update({ 
-                                        loginLocation: { type: 'Point', coordinates: loginLocation }, 
-                                        city: result ? result.results[7].formatted_address : "Somewhere"
-                                    })
-                                    .then(() => {
+                                    if (result.results.length > 5 && result.results[6].formatted_address) {
+                                        return user.update({ 
+                                            loginLocation: { type: 'Point', coordinates: loginLocation }, 
+                                            city: result ? result.results[7].formatted_address : "Somewhere"
+                                        })
+                                        .then(() => {
+                                            const token = jwt.sign(
+                                                {
+                                                    userId: user.id.toString(),
+                                                    userName: user.name.toString(),
+                                                    userPic: user.profilePic.toString()
+                                                }, 
+                                                'secret', 
+                                                // { expiresIn: '24h' }
+                                            );
+                                            return token;
+                                        })
+                                    } else {
                                         const token = jwt.sign(
                                             {
                                                 userId: user.id.toString(),
@@ -286,7 +304,7 @@ const resolvers = {
                                             // { expiresIn: '24h' }
                                         );
                                         return token;
-                                    })
+                                    }
                                 })
                             })
                         })
@@ -414,26 +432,47 @@ const resolvers = {
                     .then(response => {
                         return response.json()
                         .then(result => {
-                            return user.update({ 
-                                loginLocation: { type: 'Point', coordinates: loginLocation }, 
-                                city: result ? result.results[7].formatted_address : "Somewhere",
-                                name: name || user.name,
-                                dob: dob || user.dob,
-                                gender: gender || user.gender,
-                                verified: true
-                            })
-                            .then(() => {
-                                const token = jwt.sign(
-                                    {
-                                        userId: user.id.toString(),
-                                        userName: user.name.toString(),
-                                        userPic: user.profilePic.toString()
-                                    }, 
-                                    'secret', 
-                                    // { expiresIn: '24h' }
-                                );
-                                return token;
-                            })
+                            if (result.results.length > 5 && result.results[6].formatted_address) {
+                                return user.update({ 
+                                    loginLocation: { type: 'Point', coordinates: loginLocation }, 
+                                    city: result ? result.results[7].formatted_address : "Somewhere",
+                                    name: name || user.name,
+                                    dob: dob || user.dob,
+                                    gender: gender || user.gender,
+                                    verified: true
+                                })
+                                .then(() => {
+                                    const token = jwt.sign(
+                                        {
+                                            userId: user.id.toString(),
+                                            userName: user.name.toString(),
+                                            userPic: user.profilePic.toString()
+                                        }, 
+                                        'secret', 
+                                        // { expiresIn: '24h' }
+                                    );
+                                    return token;
+                                })
+                            } else {
+                                return user.update({  
+                                    name: name || user.name,
+                                    dob: dob || user.dob,
+                                    gender: gender || user.gender,
+                                    verified: true
+                                })
+                                .then(() => {
+                                    const token = jwt.sign(
+                                        {
+                                            userId: user.id.toString(),
+                                            userName: user.name.toString(),
+                                            userPic: user.profilePic.toString()
+                                        }, 
+                                        'secret', 
+                                        // { expiresIn: '24h' }
+                                    );
+                                    return token;
+                                })
+                            }
                         })
                     })
                 // Code didn't match up existing user
@@ -449,12 +488,11 @@ const resolvers = {
         },
         // ADMIN TEST FUNCTIONS _ TAKE THESE OUT LATER
         createTestUser: (parent, args, context) => {
-            console.log(args)
             return User.create({
                 name: args.name,
                 dob: '08/27/1993',
                 gender: 'male',
-                loginLocation: { type: 'Point', coordinates: [45.5202471, -122.6741949] },
+                loginLocation: { type: 'Point', coordinates: args.location },
                 city: 'Seattle, WA, USA'
             })
             .then(() => {
@@ -468,7 +506,6 @@ const resolvers = {
                 }
             })
             .then((user) => {
-                console.log(user)
                 const token = jwt.sign(
                     {
                         userId: user.id.toString(),

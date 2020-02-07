@@ -123,13 +123,11 @@ app.use(
 );
 
 
-User.belongsToMany(Game, { through: Player, constraints: true, onDelete: 'CASCADE' });
+User.belongsToMany(Game, { through: Player, constraints: false, onDelete: 'CASCADE' });
 User.belongsToMany(Conversation, { through: Participant, constraints: true, onDelete: 'CASCADE' });
 Game.belongsToMany(User, { through: Player, constraints: true, onDelete: 'CASCADE' });
-
 Game.hasMany(Player);
 Player.belongsTo(Game);
-
 Conversation.belongsToMany(User, { through: Participant, constraints: true, onDelete: 'CASCADE' });
 Conversation.hasOne(Game, { constraints: true, onDelete: 'CASCADE' });
 Conversation.hasMany(Message, { constraints: true, onDelete: 'CASCADE' });
