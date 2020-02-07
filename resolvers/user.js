@@ -139,6 +139,8 @@ const resolvers = {
         createUserFb: (parent, args) => {
             const { name, dob, gender, facebookId, facebookToken } = args.userInput;
 
+            const jerseyNumber = Math.floor(10 + Math.random() * 90);
+
             // Verify Facebook access token is valid for our app
             return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${API.fbAppId}|${API.fbSecret}`)
             .then(response => {
@@ -154,7 +156,8 @@ const resolvers = {
                                 dob: dob,
                                 gender: gender,
                                 facebookId: facebookId,
-                                verified: true
+                                verified: true,
+                                number: jerseyNumber
                             }
                         })
                         .spread( (user, created) => {
@@ -250,8 +253,6 @@ const resolvers = {
         },
         // Login with Facebook
         loginFb: (parent, args) => {
-            const errors = [];
-
             const { facebookToken, facebookId, loginLocation } = args.userInput;
 
             return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${API.fbAppId}|${API.fbSecret}`)
@@ -324,6 +325,8 @@ const resolvers = {
 
             const code = Math.floor(100000 + Math.random() * 900000);
 
+            const jerseyNumber = Math.floor(10 + Math.random() * 90);
+
             return User.findOne({
                 where: {
                     phoneNumber: args.phoneNumber
@@ -340,7 +343,8 @@ const resolvers = {
                         if (message) {
                             return User.create({
                                 phoneNumber: args.phoneNumber,
-                                phoneCode: code
+                                phoneCode: code,
+                                number: jerseyNumber
                             })
                             .then( user => {
                                 if (user) {
@@ -488,12 +492,15 @@ const resolvers = {
         },
         // ADMIN TEST FUNCTIONS _ TAKE THESE OUT LATER
         createTestUser: (parent, args, context) => {
+            const jerseyNumber = Math.floor(10 + Math.random() * 90);
+
             return User.create({
                 name: args.name,
                 dob: '08/27/1993',
                 gender: 'male',
                 loginLocation: { type: 'Point', coordinates: args.location },
-                city: 'Seattle, WA, USA'
+                city: 'Seattle, WA, USA',
+                number: jerseyNumber
             })
             .then(() => {
                 return true

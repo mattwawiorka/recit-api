@@ -187,7 +187,6 @@ const resolvers = {
             // Find all games not in the past
             return Game.findAndCountAll(options)
             .then( result => {
-                console.log(result)
                 let edges = [], endCursor; 
                 result.rows.map( (game, index) => {
                     edges.push({
@@ -932,7 +931,7 @@ const resolvers = {
                                                 conversationId: args.conversationId,
                                                 userId: context.user
                                             })
-                                            .then(() => {
+                                            .then((message) => {
                                                 let participant = {
                                                     userId: context.user,
                                                     name: context.userName,
@@ -944,6 +943,14 @@ const resolvers = {
             
                                                 pubsub.publish(NEW_PARTICIPANT, {
                                                     participantJoined: participant, gameId: args.gameId
+                                                });
+
+                                                pubsub.publish('MESSAGE_ADDED', {
+                                                    messageAdded: {
+                                                        node: message.dataValues,
+                                                        cursor: message.dataValues.updatedAt,
+                                                        userPic: context.userPic
+                                                    }
                                                 });
                             
                                                 pubsub.publish(NOTIFICATION, { 
@@ -967,7 +974,7 @@ const resolvers = {
                                         conversationId: args.conversationId,
                                         userId: context.user
                                     })
-                                    .then(() => {
+                                    .then((message) => {
                                         let participant = {
                                             userId: context.user,
                                             name: context.userName,
@@ -978,6 +985,14 @@ const resolvers = {
     
                                         pubsub.publish(NEW_PARTICIPANT, {
                                             participantJoined: participant, gameId: args.gameId
+                                        });
+
+                                        pubsub.publish('MESSAGE_ADDED', {
+                                            messageAdded: {
+                                                node: message.dataValues,
+                                                cursor: message.dataValues.updatedAt,
+                                                userPic: context.userPic
+                                            }
                                         });
                     
                                         pubsub.publish(NOTIFICATION, { 
@@ -1013,7 +1028,7 @@ const resolvers = {
                                         conversationId: args.conversationId,
                                         userId: context.user
                                     })
-                                    .then(() => {
+                                    .then((message) => {
                                         let participant = {
                                             userId: context.user,
                                             name: context.userName,
@@ -1024,6 +1039,14 @@ const resolvers = {
 
                                         pubsub.publish(NEW_PARTICIPANT, {
                                             participantJoined: participant, gameId: args.gameId
+                                        });
+
+                                        pubsub.publish('MESSAGE_ADDED', {
+                                            messageAdded: {
+                                                node: message.dataValues,
+                                                cursor: message.dataValues.updatedAt,
+                                                userPic: context.userPic
+                                            }
                                         });
                     
                                         pubsub.publish(NOTIFICATION, { 
@@ -1052,7 +1075,7 @@ const resolvers = {
                                         conversationId: args.conversationId,
                                         userId: context.user
                                     })
-                                    .then(() => {
+                                    .then((message) => {
                                         let participant = {
                                             userId: context.user,
                                             name: context.userName,
@@ -1064,6 +1087,14 @@ const resolvers = {
     
                                         pubsub.publish(NEW_PARTICIPANT, {
                                             participantJoined: participant, gameId: args.gameId
+                                        });
+
+                                        pubsub.publish('MESSAGE_ADDED', {
+                                            messageAdded: {
+                                                node: message.dataValues,
+                                                cursor: message.dataValues.updatedAt,
+                                                userPic: context.userPic
+                                            }
                                         });
                     
                                         pubsub.publish(NOTIFICATION, { 
@@ -1122,7 +1153,7 @@ const resolvers = {
                         conversationId: args.conversationId,
                         userId: context.user
                     })
-                    .then(() => {
+                    .then((message) => {
                         let participant = {
                             userId: context.user,
                             name: context.userName,
@@ -1133,6 +1164,14 @@ const resolvers = {
 
                         pubsub.publish(NEW_PARTICIPANT, {
                             participantJoined: participant, gameId: args.gameId
+                        });
+
+                        pubsub.publish('MESSAGE_ADDED', {
+                            messageAdded: {
+                                node: message.dataValues,
+                                cursor: message.dataValues.updatedAt,
+                                userPic: context.userPic
+                            }
                         });
     
                         pubsub.publish(NOTIFICATION, { 
@@ -1156,7 +1195,7 @@ const resolvers = {
                             conversationId: args.conversationId,
                             userId: context.user
                         })
-                        .then(() => {
+                        .then((message) => {
                             let participant = {
                                 userId: context.user,
                                 name: context.userName,
@@ -1167,6 +1206,14 @@ const resolvers = {
     
                             pubsub.publish(NEW_PARTICIPANT, {
                                 participantJoined: participant, gameId: args.gameId
+                            });
+
+                            pubsub.publish('MESSAGE_ADDED', {
+                                messageAdded: {
+                                    node: message.dataValues,
+                                    cursor: message.dataValues.updatedAt,
+                                    userPic: context.userPic
+                                }
                             });
         
                             pubsub.publish(NOTIFICATION, { 
@@ -1218,7 +1265,7 @@ const resolvers = {
                             conversationId: args.conversationId,
                             userId: context.user
                         })
-                        .then(() => {
+                        .then((message) => {
                             let participant = {
                                 userId: context.user,
                                 name: context.userName,
@@ -1229,6 +1276,14 @@ const resolvers = {
     
                             pubsub.publish(PARTICIPANT_LEFT, {
                                 participantLeft: participant, gameId: args.gameId
+                            });
+
+                            pubsub.publish('MESSAGE_ADDED', {
+                                messageAdded: {
+                                    node: message.dataValues,
+                                    cursor: message.dataValues.updatedAt,
+                                    userPic: context.userPic
+                                }
                             });
         
                             pubsub.publish(NOTIFICATION, { 
@@ -1292,9 +1347,17 @@ const resolvers = {
                                     conversationId: args.conversationId,
                                     userId: context.user
                                 })
-                                .then(() => {
+                                .then((message) => {
                                     pubsub.publish(PARTICIPANT_LEFT, {
                                         participantLeft: { userId: context.user, player: true, userId: context.user }, gameId: args.gameId
+                                    });
+
+                                    pubsub.publish('MESSAGE_ADDED', {
+                                        messageAdded: {
+                                            node: message.dataValues,
+                                            cursor: message.dataValues.updatedAt,
+                                            userPic: context.userPic
+                                        }
                                     });
 
                                     pubsub.publish(NOTIFICATION, { 

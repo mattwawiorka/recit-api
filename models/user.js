@@ -19,6 +19,13 @@ const User = sequelize.define('user',
     name: {
       type: Sequelize.STRING
     },
+    // "Jersey Number" used to differentiate users with the same name
+    // Could also be used in the future to generate default profile pic
+    number: {
+      type: Sequelize.STRING,
+      allowNull: false,
+      defaultValue: 00
+    },
     facebookId: {
       type: Sequelize.STRING
     },

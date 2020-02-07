@@ -4,6 +4,7 @@ const typeDef = `
     type User {
         id: ID!
         name: String
+        number: String
         facebookId: String
         phoneNumber: String
         dob: String
