@@ -51,7 +51,9 @@ const Game = sequelize.define('game',
       type: Sequelize.STRING(1000)
     },
     image : {
-      type: Sequelize.STRING
+      type: Sequelize.STRING,
+      allowNull: false,
+      defaultValue: '/REC-IT.png'
     },
     public : {
       type: Sequelize.BOOLEAN,

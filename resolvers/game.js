@@ -517,14 +517,17 @@ const resolvers = {
             const endD = new Date(endDateTime);
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to create game' });
+                const error = new Error('Must be logged in to create game');
+                error.code = 401;   
+                throw error;
             }
+
             if (!title || !dateTime || !sport || !description || !spots || (public == null)) {
-                errors.push({ 
-                    message: 'Please fill in all required fields',
-                    field:  'all'
-                });
+                const error = new Error('Please fill in all fields');
+                error.code = 401;   
+                throw error;
             }
+
             if (!address && !venue) {
                 errors.push({ 
                     message: 'Please select a valid address',
@@ -611,7 +614,8 @@ const resolvers = {
                             spotsReserved: spotsReserved,
                             description: description,
                             public: public,
-                            conversationId: conversation.id
+                            conversationId: conversation.id,
+                            image: "/" + sport + ".png"
                         })
                         .then( game => {
                             // Create the host player
@@ -760,7 +764,8 @@ const resolvers = {
                             spots: spots || game.spots,
                             spotsReserved: (spotsReserved != null) ? spotsReserved : game.spotsReserved,
                             description: description || game.description,
-                            public: public
+                            public: public,
+                            image: sport ? "/" + sport + ".png" : game.image
                         }) 
                         .then( result => {
                             if (!result) {
