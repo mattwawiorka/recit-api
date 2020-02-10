@@ -37,7 +37,7 @@ const typeDef = `
 
     type Query {
         messages(conversationId: ID, cursor: String): MessageFeed
-        inbox: MessageFeed
+        inbox(cursor: String): MessageFeed
         notifications: Int
     }
 

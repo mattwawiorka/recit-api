@@ -12,10 +12,6 @@ const User = sequelize.define('user',
       allowNull: false,
       primaryKey: true
     },
-    // userName: {
-    //   type: Sequelize.STRING,
-    //   allowNull: false
-    // },
     name: {
       type: Sequelize.STRING
     },

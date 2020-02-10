@@ -1,5 +1,7 @@
 const { Op, fn, col, literal, where } = require('sequelize');
 const User = require('../models/user');
+const Player = require('../models/player');
+const Game = require('../models/game');
 const jwt = require('jsonwebtoken');
 const API = require('../api.json');
 const fetch = require('node-fetch');
@@ -7,8 +9,10 @@ const twilio = require('twilio')(API.twilioSid, API.twilioToken);
 
 const resolvers = {
     Query: {
+        // ADMIN view full users list - can filter by region
         users: (parent, args, context) => {
-            if (!context.isAuth) {
+            // Only admin user (mjw) can view full users list
+            if (context.user != 1) {
                 const error = new Error('Unauthorized user');
                 error.code = 401;
                 throw error;
@@ -22,6 +26,7 @@ const resolvers = {
                 throw error;
             });
         },
+        // Get currently logged in user
         whoAmI: (parent, args, context) => {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
@@ -81,6 +86,7 @@ const resolvers = {
                 attributes: {},
             }
 
+            // Sort by distance to users last login location
             if (args.location) {
                 options.attributes.include = [
                     [
@@ -96,7 +102,7 @@ const resolvers = {
                 options.order = literal('distance ASC');
             }
 
-            // TODO: Figure this out
+            // Cursor = distance
             if (args.cursor > 0) {
                 options.where = {
                     name: {
@@ -113,7 +119,6 @@ const resolvers = {
             .then( result => {
                 let edges = [], endCursor; 
                 result.rows.map( (user, index) => {
-                    console.log(user.dataValues.distance)
                     edges.push({
                         cursor: user.dataValues.distance,
                         node: user
@@ -131,7 +136,42 @@ const resolvers = {
                     }
                 } 
             });
-        }
+        },
+        // Get a users top played sport
+        topSport: (parent, args, context) => {
+            return Player.count({
+                where : {
+                    userId: args.userId
+                },
+                include: [
+                    {
+                        model: Game,
+                        attributes: ['sport'],
+                        where: {
+                            // Only past (completed) games count
+                            dateTime: {
+                                [Op.lt]: Date.now()
+                            }
+                        }
+                    }
+                ],
+                group: [literal('game.sport')]
+            })
+            .then(result => {
+                let count = 0, top;
+                result.map( (sport, index) => {
+                    if (sport.count > count) {
+                        count = sport.count;
+                        top = index;
+                    }
+                })
+                if (result.length > 0) {
+                    return result[top].sport
+                } else {
+                    return 'TBD'
+                }
+            })
+        },
     },
     Mutation: {
         // Create user from Facebook - no username for now
@@ -192,65 +232,6 @@ const resolvers = {
                 throw error;
             })
         },
-        updateUser: (parent, args, context) => {
-            if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
-                error.code = 401;
-                throw error;
-            }
-
-            if (args.userId != context.user) {
-                const error = new Error('Unauthorized user');
-                error.code = 401;
-                throw error;
-            }
-
-            return User.findOne({
-                where: {
-                    id: context.user
-                }
-            })
-            .then( user => {
-                return user.update({
-                    name: args.userInput.name || user.name,
-                    dob: args.userInput.dob || user.dob,
-                    gender: args.userInput.gender || user.gender,
-                    status: args.userInput.status || user.status,
-                    profilePic: args.userInput.profilePic || user.profilePic,
-                    pic1: args.userInput.pic1 || user.pic1,
-                    pic2: args.userInput.pic2 || user.pic2,
-                    pic3: args.userInput.pic3 || user.pic3
-                })
-            })
-            .then( result => {
-                return result
-            })
-            .catch(error => {
-                console.log(error);
-            });
-        },
-        deleteUser: (parent, args) => {
-            if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
-                throw error;
-            }
-
-            return User.destroy({
-                where: {
-                    id: context.user
-                }
-            })
-            .then( rowsDeleted => {
-                if (rowsDeleted === 1) {
-                    return true;
-                } else {
-                    return false;
-                }
-            })
-            .catch(error => {
-                console.log(error);
-            });
-        },
         // Login with Facebook
         loginFb: (parent, args) => {
             const { facebookToken, facebookId, loginLocation } = args.userInput;
@@ -276,11 +257,24 @@ const resolvers = {
                             return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${API.google}`)
                             .then(response => {
                                 return response.json()
-                                .then(result => {
-                                    if (result.results.length > 5 && result.results[6].formatted_address) {
+                                .then(JSONresult => {
+                                    let city;
+                                    for (let i = 0; i < JSONresult.results.length; i++) {
+                                        if (JSONresult.results[i].types.includes("locality")) {
+                                            city = JSONresult.results[i].formatted_address;
+                                            break;
+                                        } else if (JSONresult.results[i].types.includes("country")) {
+                                            city = JSONresult.results[i].formatted_address;
+                                            break; 
+                                        } else {
+                                            city = "Somewhere"
+                                        }
+                                    }
+
+                                    if (JSONresult.results.length > 1) {
                                         return user.update({ 
                                             loginLocation: { type: 'Point', coordinates: loginLocation }, 
-                                            city: result ? result.results[7].formatted_address : "Somewhere"
+                                            city: JSONresult ? city : "Somewhere"
                                         })
                                         .then(() => {
                                             const token = jwt.sign(
@@ -435,11 +429,24 @@ const resolvers = {
                     return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${API.google}`)
                     .then(response => {
                         return response.json()
-                        .then(result => {
-                            if (result.results.length > 5 && result.results[6].formatted_address) {
+                        .then(JSONresult => {
+                            let city;
+                            for (let i = 0; i < JSONresult.results.length; i++) {
+                                if (JSONresult.results[i].types.includes("locality")) {
+                                    city = JSONresult.results[i].formatted_address;
+                                    break;
+                                } else if (JSONresult.results[i].types.includes("country")) {
+                                    city = JSONresult.results[i].formatted_address;
+                                    break;
+                                } else {
+                                    city = "Somewhere"
+                                }
+                            }
+
+                            if (JSONresult.results.length > 1) {
                                 return user.update({ 
                                     loginLocation: { type: 'Point', coordinates: loginLocation }, 
-                                    city: result ? result.results[7].formatted_address : "Somewhere",
+                                    city: JSONresult ? city : "Somewhere",
                                     name: name || user.name,
                                     dob: dob || user.dob,
                                     gender: gender || user.gender,
@@ -490,15 +497,80 @@ const resolvers = {
                 throw error;
             })
         },
-        // ADMIN TEST FUNCTIONS _ TAKE THESE OUT LATER
+        updateUser: (parent, args, context) => {
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                error.code = 401;
+                throw error;
+            }
+
+            if (args.userId != context.user) {
+                const error = new Error('Unauthorized user');
+                error.code = 401;
+                throw error;
+            }
+
+            return User.findOne({
+                where: {
+                    id: context.user
+                }
+            })
+            .then( user => {
+                return user.update({
+                    name: args.userInput.name || user.name,
+                    dob: args.userInput.dob || user.dob,
+                    gender: args.userInput.gender || user.gender,
+                    status: args.userInput.status || user.status,
+                    profilePic: args.userInput.profilePic || user.profilePic,
+                    pic1: args.userInput.pic1 || user.pic1,
+                    pic2: args.userInput.pic2 || user.pic2,
+                    pic3: args.userInput.pic3 || user.pic3
+                })
+            })
+            .then( result => {
+                return result
+            })
+            .catch(error => {
+                console.log(error);
+            });
+        },
+        deleteUser: (parent, args) => {
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                throw error;
+            }
+
+            return User.destroy({
+                where: {
+                    id: context.user
+                }
+            })
+            .then( rowsDeleted => {
+                if (rowsDeleted === 1) {
+                    return true;
+                } else {
+                    return false;
+                }
+            })
+            .catch(error => {
+                console.log(error);
+            });
+        },
+        // ADMIN TEST FUNCTIONS
         createTestUser: (parent, args, context) => {
+            // if (context.user != 1) {
+            //     const error = new Error('Unauthorized user');
+            //     error.code = 401;
+            //     throw error;
+            // }
+
             const jerseyNumber = Math.floor(10 + Math.random() * 90);
 
             return User.create({
                 name: args.name,
                 dob: '08/27/1993',
                 gender: 'male',
-                loginLocation: { type: 'Point', coordinates: args.location },
+                loginLocation: args.location ? { type: 'Point', coordinates: args.location } : null,
                 city: 'Seattle, WA, USA',
                 number: jerseyNumber
             })
@@ -507,6 +579,12 @@ const resolvers = {
             })
         },
         loginTestUser: (parent, args, context) => {
+            // if (context.user != 1) {
+            //     const error = new Error('Unauthorized user');
+            //     error.code = 401;
+            //     throw error;
+            // }
+
             return User.findOne({
                 where: {
                     name: args.name

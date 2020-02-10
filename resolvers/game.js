@@ -8,28 +8,7 @@ const Message = require('../models/message');
 const validator = require('validator');
 const dateTool = require('../util/dateTool');
 const { withFilter } = require('apollo-server');
-
-// Initialize pubsub on Redis server
-const { RedisPubSub } = require('graphql-redis-subscriptions');
-const Redis = require('ioredis');
-const options = {
-    host: '127.0.0.1',
-    port: '6379',
-    retryStrategy: times => {
-      // reconnect after
-      return Math.min(times * 50, 2000);
-    }
-};
-const pubsub = new RedisPubSub({
-    publisher: new Redis(options),
-    subscriber: new Redis(options)
-});
-
-const GAME_ADDED = 'GAME_ADDED';
-const GAME_DELETED = 'GAME_DELETED';
-const NEW_PARTICIPANT = 'NEW_PARTICIPANT';
-const PARTICIPANT_LEFT = 'PARTICIPANT_LEFT';
-const NOTIFICATION = 'NOTIFICATION';
+const pubsub = require('../util/redis');
 
 GAMES_PER_PAGE = 15;
 
@@ -37,7 +16,7 @@ const resolvers = {
     Subscription: {
         gameAdded: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(GAME_ADDED), 
+                () => pubsub.asyncIterator('GAME_ADDED'), 
                 (payload, variables) => {
                     const p = {
                         x: payload.gameAdded.node.location.coordinates[1],
@@ -49,40 +28,47 @@ const resolvers = {
                         ax: variables.bounds[1],
                         ay: variables.bounds[0] 
                     }
+                    // Make sure game is within users map bounds before sending 
                     const withinBounds = ( bb.ix <= p.x && p.x <= bb.ax && bb.iy <= p.y && p.y <= bb.ay )
+                    // Don't send if game is beyond users datetime cursor unless user is looking at less than 15 games
                     return withinBounds && ((payload.gameAdded.node.dateTime < variables.cursor) || (variables.numGames < 15))
                 }
             )
         },
         gameDeleted: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(GAME_DELETED), 
+                () => pubsub.asyncIterator('GAME_DELETED'), 
                 (payload, variables) => {
+                    // Only send if game user is currently looking at was deleted
                     return variables.loadedGames.includes(payload.gameDeleted);
                 }
             )
         },
         participantJoined: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(NEW_PARTICIPANT),
+                () => pubsub.asyncIterator('NEW_PARTICIPANT'),
                 (payload, variables) => {
+                    // Send if user is currently on the game page where participant was added
                     return variables.gameId === payload.gameId;
                 }
             )
         },
         participantLeft: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(PARTICIPANT_LEFT),
+                () => pubsub.asyncIterator('PARTICIPANT_LEFT'),
                 (payload, variables) => {
+                    // Send if user is currently on the game page where participant left
                     return variables.gameId === payload.gameId;
                 }
             )
         },
         notificationGame: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(NOTIFICATION),
+                () => pubsub.asyncIterator('NOTIFICATION'),
                 (payload, variables) => {
+                    // Don't send notifications for your own actions
                     if (payload.currentUser === variables.userId) return false;
+                    // Send notification if there was an update to a conversation a user is participating in
                     return Participant.findOne({
                         raw: true,
                         where: {
@@ -102,6 +88,7 @@ const resolvers = {
     },
     Query: {
         // Get public games feed for your area 
+        // Need SQL group by mode = '' for this query to work!
         games: (parent, args, context) => {
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
@@ -141,7 +128,8 @@ const resolvers = {
                 order: [
                     ["dateTime", "ASC"]
                 ],
-                group: ['id', 'spots', 'spotsReserved'],
+                // game.id here
+                group: ['game.id', 'spots', 'spotsReserved'],
             };
 
             if (sport !== "ALL") {
@@ -266,6 +254,32 @@ const resolvers = {
                 throw error;
             });
         },
+        // Get host for a game
+        host: (parent, args, context) => {
+            return Player.findOne({
+                raw: true,
+                where: {
+                    gameId: args.gameId,
+                    level: 1
+                }
+            })
+            .then(host => {
+                if (!host) {
+                    const error = new Error('Could not find host');
+                    throw error;
+                } else {
+                    return { 
+                        level: 1,
+                        userId: host.userId,
+                        isMe: host.userId == context.user 
+                    };
+                }  
+            })
+            .catch(error => {
+                console.log(error)
+                throw error;
+            })
+        },
         // Get players for game
         players: (parent, args, context) => {
             // Don't allow users to view games if they are not logged in
@@ -324,29 +338,43 @@ const resolvers = {
                 throw error;
             });
         },
-        // Get host for a game
-        host: (parent, args, context) => {
-            return Player.findOne({
-                raw: true,
+        // Get users interested and invited to a game
+        watchers: (parent, args, context) => {
+            return Participant.findAll({
                 where: {
-                    gameId: args.gameId,
-                    level: 1
+                    conversationId: args.conversationId,
+                    level: {
+                        [Op.ne]: 1
+                    }
                 }
             })
-            .then(host => {
-                if (!host) {
-                    const error = new Error('Could not find host');
-                    throw error;
-                } else {
-                    return { 
-                        level: 1,
-                        userId: host.userId,
-                        isMe: host.userId == context.user 
-                    };
-                }  
+            .then( results => {
+                return results.map( p => {
+                    return User.findOne({
+                        raw: true,
+                        where: {
+                            id: p.userId
+                        }
+                    })
+                    .then( user => {
+                        if (!user) {
+                            const error = new Error('There is no user associated with this participant');
+                            throw error;
+                        }
+
+                        let watcher = {
+                            userId: user.id, 
+                            name: user.name,
+                            level: p.level,
+                            profilePic: user.profilePic,
+                            isMe: user.id == context.user
+                        };
+                        return watcher;
+                    })
+                })
             })
             .catch(error => {
-                console.log(error)
+                console.log(error);
                 throw error;
             })
         },
@@ -427,81 +455,6 @@ const resolvers = {
                 };
             })
         },
-        watchers: (parent, args, context) => {
-            return Participant.findAll({
-                where: {
-                    conversationId: args.conversationId,
-                    level: {
-                        [Op.ne]: 1
-                    }
-                }
-            })
-            .then( results => {
-                return results.map( p => {
-                    return User.findOne({
-                        raw: true,
-                        where: {
-                            id: p.userId
-                        }
-                    })
-                    .then( user => {
-                        if (!user) {
-                            const error = new Error('There is no user associated with this participant');
-                            throw error;
-                        }
-
-                        let watcher = {
-                            userId: user.id, 
-                            name: user.name,
-                            level: p.level,
-                            profilePic: user.profilePic,
-                            isMe: user.id == context.user
-                        };
-                        return watcher;
-                    })
-                })
-            })
-            .catch(error => {
-                console.log(error);
-                throw error;
-            })
-        },
-        // Get a users top played sport
-        topSport: (parent, args, context) => {
-            return Player.count({
-                where : {
-                    userId: args.userId
-                },
-                include: [
-                    {
-                        model: Game,
-                        attributes: ['sport'],
-                        where: {
-                            // Only past (completed) games count
-                            dateTime: {
-                                [Op.lt]: Date.now()
-                            }
-                        }
-                    }
-                ],
-                group: [literal('game.sport')]
-            })
-            .then(result => {
-                let count = 0, top;
-                result.map( (sport, index) => {
-                    if (sport.count > count) {
-                        count = sport.count;
-                        top = index;
-                    }
-                })
-                if (result.length > 0) {
-                    return result[top].sport
-                } else {
-                    return 'TBD'
-                }
-                
-            })
-        }
     },
     Mutation: {
         createGame: (parent, args, context) => {
@@ -649,7 +602,7 @@ const resolvers = {
                                             }
                                         };
 
-                                        pubsub.publish(GAME_ADDED, gameAdded);
+                                        pubsub.publish('GAME_ADDED', gameAdded);
                                     }
                                     
                                     // Create reserved player spots
@@ -734,7 +687,7 @@ const resolvers = {
                     throw error;
                 }
 
-                if (spotsReserved > (spots - game.dataValues.players)) {
+                if (spotsReserved >= (spots - game.dataValues.players)) {
                     const error = new Error('Claimed player spots cannot be reserved');
                     throw error;
                 }
@@ -773,26 +726,50 @@ const resolvers = {
                                 throw error;
                             } else {
                                 if (result.dataValues.spotsReserved > oldSpotsReserved) {
+                                    let promises = [];
                                     // create new reserved player spots
                                     for (i = 0; i < result.dataValues.spotsReserved - oldSpotsReserved; i++) {
-                                        Player.create({
+                                        promises.push(Player.create({
                                             gameId: args.id,
                                             level: 3
                                         })
+                                        .then(() => {
+                                            pubsub.publish('NEW_PARTICIPANT', {
+                                                participantJoined: { level: 3, player: true, profilePic: 'http://localhost:8080/images/profile-blank.png' }, gameId: args.id
+                                            });
+                                        }))
                                     }
+
+                                    return Promise.all(promises)
+                                    .then(() => {
+                                        return result
+                                    })
                                 } 
                                 else if (result.dataValues.spotsReserved < oldSpotsReserved) {
+                                    let promises = [];
                                     // remove unneeded reserved player spots
                                     for (i = 0; i < oldSpotsReserved - result.dataValues.spotsReserved; i++) {
-                                        Player.destroy({
+                                        promises.push(Player.destroy({
                                             where: {
                                                 gameId: args.id,
                                                 level: 3
-                                            }
+                                            },
+                                            limit: oldSpotsReserved - result.dataValues.spotsReserved
+                                        })
+                                        .then(() => {
+                                            pubsub.publish('PARTICIPANT_LEFT', {
+                                                participantLeft: { level: 3, player: true, number: oldSpotsReserved - result.dataValues.spotsReserved }, gameId: args.id
+                                            });
+                                        }))
+
+                                        return Promise.all(promises)
+                                        .then(() => {
+                                            return result
                                         })
                                     }
-                                } 
-                                return result;
+                                } else {
+                                    return result;
+                                }
                             } 
                         })
                     } 
@@ -844,7 +821,7 @@ const resolvers = {
                                 return game.destroy()
                                 .then( result => {
                                     if (result) {
-                                        pubsub.publish(GAME_DELETED, {
+                                        pubsub.publish('GAME_DELETED', {
                                             gameDeleted: args.gameId
                                         })
                                         return true;
@@ -946,7 +923,7 @@ const resolvers = {
                                                     player: true
                                                 };
             
-                                                pubsub.publish(NEW_PARTICIPANT, {
+                                                pubsub.publish('NEW_PARTICIPANT', {
                                                     participantJoined: participant, gameId: args.gameId
                                                 });
 
@@ -958,7 +935,7 @@ const resolvers = {
                                                     }
                                                 });
                             
-                                                pubsub.publish(NOTIFICATION, { 
+                                                pubsub.publish('NOTIFICATION', { 
                                                     conversationId: args.conversationId, currentUser: context.user
                                                 });
                                                 
@@ -988,7 +965,7 @@ const resolvers = {
                                             player: true
                                         };
     
-                                        pubsub.publish(NEW_PARTICIPANT, {
+                                        pubsub.publish('NEW_PARTICIPANT', {
                                             participantJoined: participant, gameId: args.gameId
                                         });
 
@@ -1000,7 +977,7 @@ const resolvers = {
                                             }
                                         });
                     
-                                        pubsub.publish(NOTIFICATION, { 
+                                        pubsub.publish('NOTIFICATION', { 
                                             conversationId: args.conversationId, currentUser: context.user
                                         });
                                         
@@ -1042,7 +1019,7 @@ const resolvers = {
                                             player: true
                                         };
 
-                                        pubsub.publish(NEW_PARTICIPANT, {
+                                        pubsub.publish('NEW_PARTICIPANT', {
                                             participantJoined: participant, gameId: args.gameId
                                         });
 
@@ -1054,7 +1031,7 @@ const resolvers = {
                                             }
                                         });
                     
-                                        pubsub.publish(NOTIFICATION, { 
+                                        pubsub.publish('NOTIFICATION', { 
                                             conversationId: args.conversationId, currentUser: context.user
                                         });
                                         
@@ -1090,7 +1067,7 @@ const resolvers = {
                                             wasInterested: true
                                         };
     
-                                        pubsub.publish(NEW_PARTICIPANT, {
+                                        pubsub.publish('NEW_PARTICIPANT', {
                                             participantJoined: participant, gameId: args.gameId
                                         });
 
@@ -1102,7 +1079,7 @@ const resolvers = {
                                             }
                                         });
                     
-                                        pubsub.publish(NOTIFICATION, { 
+                                        pubsub.publish('NOTIFICATION', { 
                                             conversationId: args.conversationId, currentUser: context.user
                                         });
                                         
@@ -1167,7 +1144,7 @@ const resolvers = {
                             player: false
                         };
 
-                        pubsub.publish(NEW_PARTICIPANT, {
+                        pubsub.publish('NEW_PARTICIPANT', {
                             participantJoined: participant, gameId: args.gameId
                         });
 
@@ -1179,7 +1156,7 @@ const resolvers = {
                             }
                         });
     
-                        pubsub.publish(NOTIFICATION, { 
+                        pubsub.publish('NOTIFICATION', { 
                             conversationId: args.conversationId, currentUser: context.user
                         });
                         
@@ -1209,7 +1186,7 @@ const resolvers = {
                                 player: false
                             };
     
-                            pubsub.publish(NEW_PARTICIPANT, {
+                            pubsub.publish('NEW_PARTICIPANT', {
                                 participantJoined: participant, gameId: args.gameId
                             });
 
@@ -1221,7 +1198,7 @@ const resolvers = {
                                 }
                             });
         
-                            pubsub.publish(NOTIFICATION, { 
+                            pubsub.publish('NOTIFICATION', { 
                                 conversationId: args.conversationId, currentUser: context.user
                             });
                             
@@ -1279,7 +1256,7 @@ const resolvers = {
                                 player: false
                             };
     
-                            pubsub.publish(PARTICIPANT_LEFT, {
+                            pubsub.publish('PARTICIPANT_LEFT', {
                                 participantLeft: participant, gameId: args.gameId
                             });
 
@@ -1291,7 +1268,7 @@ const resolvers = {
                                 }
                             });
         
-                            pubsub.publish(NOTIFICATION, { 
+                            pubsub.publish('NOTIFICATION', { 
                                 conversationId: args.conversationId, currentUser: context.user
                             });
                             
@@ -1353,7 +1330,7 @@ const resolvers = {
                                     userId: context.user
                                 })
                                 .then((message) => {
-                                    pubsub.publish(PARTICIPANT_LEFT, {
+                                    pubsub.publish('PARTICIPANT_LEFT', {
                                         participantLeft: { userId: context.user, player: true, userId: context.user }, gameId: args.gameId
                                     });
 
@@ -1365,7 +1342,7 @@ const resolvers = {
                                         }
                                     });
 
-                                    pubsub.publish(NOTIFICATION, { 
+                                    pubsub.publish('NOTIFICATION', { 
                                         conversationId: args.conversationId, currentUser: context.user
                                     });
 

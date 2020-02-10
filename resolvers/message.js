@@ -4,28 +4,7 @@ const User = require('../models/user');
 const Conversation = require('../models/conversation');
 const Participant = require('../models/participant');
 const { withFilter } = require('apollo-server');
-
-
-// Initialize pubsub on Redis server
-const { RedisPubSub } = require('graphql-redis-subscriptions');
-const Redis = require('ioredis');
-const options = {
-    host: '127.0.0.1',
-    port: '6379',
-    retryStrategy: times => {
-      // reconnect after
-      return Math.min(times * 50, 2000);
-    }
-};
-const pubsub = new RedisPubSub({
-    publisher: new Redis(options),
-    subscriber: new Redis(options)
-});
-
-const MESSAGE_ADDED = 'MESSAGE_ADDED';
-const MESSAGE_UPDATED = 'MESSAGE_UPDATED';
-const MESSAGE_DELETED = 'MESSAGE_DELETED';
-const NOTIFICATION = 'NOTIFICATION';
+const pubsub = require('../util/redis');
 
 MESSAGES_PER_PAGE = 15;
 
@@ -33,7 +12,7 @@ const resolvers = {
     Subscription: {
         messageAdded: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(MESSAGE_ADDED),
+                () => pubsub.asyncIterator('MESSAGE_ADDED'),
                 (payload, variables) => {  
                     return payload.messageAdded.node.conversationId == variables.conversationId;
                 }
@@ -41,7 +20,7 @@ const resolvers = {
         },
         messageUpdated: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(MESSAGE_UPDATED),
+                () => pubsub.asyncIterator('MESSAGE_UPDATED'),
                 (payload, variables) => {
                     return payload.messageUpdated.node.conversationId == variables.conversationId;
                 }
@@ -49,7 +28,7 @@ const resolvers = {
         },
         messageDeleted: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(MESSAGE_DELETED),
+                () => pubsub.asyncIterator('MESSAGE_DELETED'),
                 (payload, variables) => {
                     return payload.messageDeleted.node.conversationId == variables.conversationId;
                 }
@@ -57,7 +36,7 @@ const resolvers = {
         },
         notificationMessage: {
             subscribe: withFilter(
-                () => pubsub.asyncIterator(NOTIFICATION),
+                () => pubsub.asyncIterator('NOTIFICATION'),
                 (payload, variables) => {
                     if (payload.currentUser === variables.userId) return false;
                     return Participant.findOne({
@@ -148,23 +127,27 @@ const resolvers = {
         },
         // Get the most recent, pertinent message for user for each of the users conversations they are participated in
         inbox: (parent, args, context) => {
-            let edges = [], endCursor;
-
-            console.log('inbox')
-
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
                 throw error;
             }
 
-            return Participant.findAll({
+            let edges = [], endCursor;
+
+            let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
+
+            return Participant.findAndCountAll({
                 where: {
-                    userId: context.user
+                    userId: context.user,
+                    updatedAt: {
+                        [Op.lt]: cursor
+                    }
                 },
-                order: [ [ 'updatedAt', 'DESC' ]]
+                order: [ [ 'updatedAt', 'DESC' ]],
+                limit: MESSAGES_PER_PAGE
             })
             .then( participations => {
-                return Promise.all(participations.map( (p, index) => {
+                return Promise.all(participations.rows.map( (p, index) => {
                     return Conversation.findOne({
                         where: {
                             id: p.conversationId
@@ -223,12 +206,15 @@ const resolvers = {
                         }
                         return comparison;
                     });
+
+                    endCursor = sortedEdges[sortedEdges.length - 1].node.updatedAt;
+
                     return {
                         totalCount: 0,
                         edges: sortedEdges,
                         pageInfo: {
-                            endCursor: null,
-                            hasNextPage: false
+                            endCursor: endCursor,
+                            hasNextPage: participations.count > MESSAGES_PER_PAGE
                         }
                     }
                 }) 
@@ -249,11 +235,12 @@ const resolvers = {
     },
     Mutation: {
         createMessage: (parent, args, context) => {
-
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
                 throw error;
             }
+
+            console.log(context)
 
             return Message.create({
                 userId: context.user,
@@ -263,7 +250,7 @@ const resolvers = {
                 content: args.messageInput.content
             })
             .then( message => {
-                pubsub.publish(MESSAGE_ADDED, {
+                pubsub.publish('MESSAGE_ADDED', {
                     messageAdded: {
                         node: message.dataValues,
                         cursor: message.dataValues.updatedAt,
@@ -271,7 +258,7 @@ const resolvers = {
                     }
                 })
 
-                pubsub.publish(NOTIFICATION, { 
+                pubsub.publish('NOTIFICATION', { 
                     conversationId: args.messageInput.conversationId, currentUser: context.user
                 });
 
@@ -303,7 +290,7 @@ const resolvers = {
                     content: args.content || message.content
                 })
                 .then(result => {
-                    pubsub.publish(MESSAGE_UPDATED, {
+                    pubsub.publish('MESSAGE_UPDATED', {
                         messageUpdated: {
                             node: {
                                 id: message.dataValues.id,
@@ -343,7 +330,7 @@ const resolvers = {
                 return message.destroy()
                 .then( message => {
                     if (message) {
-                        pubsub.publish(MESSAGE_DELETED, {
+                        pubsub.publish('MESSAGE_DELETED', {
                             messageDeleted: 
                             {
                                 node: {
@@ -406,7 +393,7 @@ const resolvers = {
                     })
                     .then( message => {
                         if (message) {
-                            pubsub.publish(MESSAGE_ADDED, {
+                            pubsub.publish('MESSAGE_ADDED', {
                                 messageAdded: {
                                     node: message.dataValues,
                                     cursor: message.dataValues.updatedAt,
@@ -414,7 +401,7 @@ const resolvers = {
                                 }
                             });
     
-                            pubsub.publish(NOTIFICATION, { 
+                            pubsub.publish('NOTIFICATION', { 
                                 conversationId: args.conversationId, currentUser: context.user
                             });
 

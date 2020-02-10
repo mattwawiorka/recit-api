@@ -52,6 +52,7 @@ const typeDef = `
         invited: Boolean
         player: Boolean
         wasInterested: Boolean
+        number: Int
     }
 
     input gameInput {
@@ -76,7 +77,6 @@ const typeDef = `
         watchers(conversationId: ID!): [Participant]
         host(gameId: ID!): Participant
         userGames(userId: ID, cursor: String, pastGames: Boolean): GameFeed
-        topSport(userId: ID): String
     }
 
     type Mutation {
