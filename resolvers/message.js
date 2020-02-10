@@ -68,13 +68,13 @@ const resolvers = {
                 raw: true,
                 where: {
                     conversationId: args.conversationId,
-                    updatedAt: {
+                    createdAt: {
                         [Op.lt]: cursor
                     },
                 },
                 limit: MESSAGES_PER_PAGE,
                 order: [
-                    ["updatedAt", "DESC"]
+                    ["createdAt", "DESC"]
                 ]
             };
 
@@ -90,20 +90,20 @@ const resolvers = {
                     .then(user => {
                         edges.push({
                             node: message,
-                            cursor: message.updatedAt,
+                            cursor: message.createdAt,
                             isOwner: message.userId == context.user,
                             userPic: user.profilePic
                         }); 
     
                         if (index === result.rows.length - 1) {
-                            endCursor = message.updatedAt;
+                            endCursor = message.createdAt;
                         }
                     })
                 }))
                 .then(() => {
                     sortedEdges = edges.sort( (a,b) => {
                         let comparison;
-                        if (a.node.updatedAt < b.node.updatedAt) {
+                        if (a.node.createdAt < b.node.createdAt) {
                             comparison = 1;
                         } else {
                             comparison = -1;
@@ -240,33 +240,39 @@ const resolvers = {
                 throw error;
             }
 
-            console.log(context)
-
-            return Message.create({
-                userId: context.user,
-                conversationId: args.messageInput.conversationId,
-                gameId: args.messageInput.gameId,
-                author: context.userName,
-                content: args.messageInput.content
+            return User.findOne({
+                where: {
+                    id: context.user
+                },
+                raw: true
             })
-            .then( message => {
-                pubsub.publish('MESSAGE_ADDED', {
-                    messageAdded: {
-                        node: message.dataValues,
-                        cursor: message.dataValues.updatedAt,
-                        userPic: context.userPic
-                    }
+            .then( user => {
+                return Message.create({
+                    userId: context.user,
+                    conversationId: args.messageInput.conversationId,
+                    gameId: args.messageInput.gameId,
+                    author: user.name,
+                    content: args.messageInput.content
                 })
-
-                pubsub.publish('NOTIFICATION', { 
-                    conversationId: args.messageInput.conversationId, currentUser: context.user
-                });
-
-                return {
-                    id: message.dataValues.id,
-                    author: message.dataValues.author,
-                    content: message.dataValues.content
-                };
+                .then( message => {
+                    pubsub.publish('MESSAGE_ADDED', {
+                        messageAdded: {
+                            node: message,
+                            cursor: message.updatedAt,
+                            userPic: user.profilePic
+                        }
+                    })
+    
+                    pubsub.publish('NOTIFICATION', { 
+                        conversationId: args.messageInput.conversationId, currentUser: context.user
+                    });
+    
+                    return {
+                        id: message.dataValues.id,
+                        author: message.dataValues.author,
+                        content: message.dataValues.content
+                    };
+                })
             })
             .catch(error => {
                 console.log(error);
@@ -378,36 +384,54 @@ const resolvers = {
                 })
                 .spread( (participant, created) => {
 
-                    if (!created) {
+                    if (!created && participant.level == 3) {
                         const error = new Error("User already invited");
                         throw error; 
                     }
 
-                    return Message.create({
-                        userId: context.user,
-                        author: context.userName,
-                        conversationId: args.conversationId,
-                        content: "Invited " + user.name,
-                        type: 3,
-                        gameId: args.gameId
-                    })
-                    .then( message => {
-                        if (message) {
-                            pubsub.publish('MESSAGE_ADDED', {
-                                messageAdded: {
-                                    node: message.dataValues,
-                                    cursor: message.dataValues.updatedAt,
-                                    userPic: context.userPic
-                                }
-                            });
-    
-                            pubsub.publish('NOTIFICATION', { 
-                                conversationId: args.conversationId, currentUser: context.user
-                            });
+                    if (!created && participant.level == 2) {
+                        const error = new Error("User already interested");
+                        throw error; 
+                    }
 
-                            return true
-                        }
+                    if (!created && participant.level == 1) {
+                        const error = new Error("User already joined");
+                        throw error; 
+                    }
+
+                    return User.findOne({
+                        where: {
+                            id: context.user
+                        },
+                        raw: true
                     })
+                    .then( currentUser => {
+                        return Message.create({
+                            userId: context.user,
+                            author: context.userName,
+                            conversationId: args.conversationId,
+                            content: "invited " + user.name,
+                            type: 3,
+                            gameId: args.gameId
+                        })
+                        .then( message => {
+                            if (message) {
+                                pubsub.publish('MESSAGE_ADDED', {
+                                    messageAdded: {
+                                        node: message.dataValues,
+                                        cursor: message.dataValues.updatedAt,
+                                        userPic: currentUser.profilePic
+                                    }
+                                });
+        
+                                pubsub.publish('NOTIFICATION', { 
+                                    conversationId: args.conversationId, currentUser: context.user
+                                });
+    
+                                return true
+                            }
+                        })
+                    }) 
                 })
             })
             .catch(error => {

@@ -29,16 +29,21 @@ const resolvers = {
         // Get currently logged in user
         whoAmI: (parent, args, context) => {
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
-                error.code = 401;
-                throw error;
+                return { id: null }
             }
 
-            return {
-                id: context.user,
-                name: context.userName,
-                profilePic: context.userPic
-            }
+            return User.findOne({
+                where: {
+                    id: context.user
+                }
+            })
+            .then( user => {
+                return {
+                    id: context.user,
+                    name: user.name,
+                    profilePic: user.profilePic
+                }
+            })
         },
         user: (parent, args, context) => {
             if (!context.isAuth) {

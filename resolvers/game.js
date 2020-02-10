@@ -914,32 +914,39 @@ const resolvers = {
                                                 userId: context.user
                                             })
                                             .then((message) => {
-                                                let participant = {
-                                                    userId: context.user,
-                                                    name: context.userName,
-                                                    level: 2,
-                                                    profilePic: context.userPic,
-                                                    invited: true,
-                                                    player: true
-                                                };
-            
-                                                pubsub.publish('NEW_PARTICIPANT', {
-                                                    participantJoined: participant, gameId: args.gameId
-                                                });
-
-                                                pubsub.publish('MESSAGE_ADDED', {
-                                                    messageAdded: {
-                                                        node: message.dataValues,
-                                                        cursor: message.dataValues.updatedAt,
-                                                        userPic: context.userPic
+                                                return User.findOne({
+                                                    where: {
+                                                        id: context.user
                                                     }
-                                                });
-                            
-                                                pubsub.publish('NOTIFICATION', { 
-                                                    conversationId: args.conversationId, currentUser: context.user
-                                                });
-                                                
-                                                return participant;
+                                                })
+                                                .then( user => {
+                                                    let participant = {
+                                                        userId: context.user,
+                                                        name: user.name,
+                                                        level: 2,
+                                                        profilePic: user.profilePic,
+                                                        invited: true,
+                                                        player: true
+                                                    };
+                
+                                                    pubsub.publish('NEW_PARTICIPANT', {
+                                                        participantJoined: participant, gameId: args.gameId
+                                                    });
+    
+                                                    pubsub.publish('MESSAGE_ADDED', {
+                                                        messageAdded: {
+                                                            node: message.dataValues,
+                                                            cursor: message.dataValues.createdAt,
+                                                            userPic: user.profilePic
+                                                        }
+                                                    });
+                                
+                                                    pubsub.publish('NOTIFICATION', { 
+                                                        conversationId: args.conversationId, currentUser: context.user
+                                                    });
+
+                                                    return participant;
+                                                })
                                             })
                                         })
                                     })
@@ -957,31 +964,38 @@ const resolvers = {
                                         userId: context.user
                                     })
                                     .then((message) => {
-                                        let participant = {
-                                            userId: context.user,
-                                            name: context.userName,
-                                            level: 2,
-                                            profilePic: context.userPic,
-                                            player: true
-                                        };
-    
-                                        pubsub.publish('NEW_PARTICIPANT', {
-                                            participantJoined: participant, gameId: args.gameId
-                                        });
-
-                                        pubsub.publish('MESSAGE_ADDED', {
-                                            messageAdded: {
-                                                node: message.dataValues,
-                                                cursor: message.dataValues.updatedAt,
-                                                userPic: context.userPic
+                                        return User.findOne({
+                                            where: {
+                                                id: context.user
                                             }
-                                        });
-                    
-                                        pubsub.publish('NOTIFICATION', { 
-                                            conversationId: args.conversationId, currentUser: context.user
-                                        });
-                                        
-                                        return participant;
+                                        })
+                                        .then( user => {
+                                            let participant = {
+                                                userId: context.user,
+                                                name: user.name,
+                                                level: 2,
+                                                profilePic: user.profilePic,
+                                                player: true
+                                            };
+        
+                                            pubsub.publish('NEW_PARTICIPANT', {
+                                                participantJoined: participant, gameId: args.gameId
+                                            });
+
+                                            pubsub.publish('MESSAGE_ADDED', {
+                                                messageAdded: {
+                                                    node: message.dataValues,
+                                                    cursor: message.dataValues.createdAt,
+                                                    userPic: user.profilePic
+                                                }
+                                            });
+                        
+                                            pubsub.publish('NOTIFICATION', { 
+                                                conversationId: args.conversationId, currentUser: context.user
+                                            });
+
+                                            return participant;
+                                        })
                                     })
                                 })
                             }
@@ -1011,31 +1025,38 @@ const resolvers = {
                                         userId: context.user
                                     })
                                     .then((message) => {
-                                        let participant = {
-                                            userId: context.user,
-                                            name: context.userName,
-                                            level: 2,
-                                            profilePic: context.userPic,
-                                            player: true
-                                        };
-
-                                        pubsub.publish('NEW_PARTICIPANT', {
-                                            participantJoined: participant, gameId: args.gameId
-                                        });
-
-                                        pubsub.publish('MESSAGE_ADDED', {
-                                            messageAdded: {
-                                                node: message.dataValues,
-                                                cursor: message.dataValues.updatedAt,
-                                                userPic: context.userPic
+                                        return User.findOne({
+                                            where: {
+                                                id: context.user
                                             }
-                                        });
-                    
-                                        pubsub.publish('NOTIFICATION', { 
-                                            conversationId: args.conversationId, currentUser: context.user
-                                        });
-                                        
-                                        return participant;
+                                        })
+                                        .then( user => {
+                                            let participant = {
+                                                userId: context.user,
+                                                name: user.name,
+                                                level: 2,
+                                                profilePic: user.profilePic,
+                                                player: true
+                                            };
+        
+                                            pubsub.publish('NEW_PARTICIPANT', {
+                                                participantJoined: participant, gameId: args.gameId
+                                            });
+
+                                            pubsub.publish('MESSAGE_ADDED', {
+                                                messageAdded: {
+                                                    node: message.dataValues,
+                                                    cursor: message.dataValues.createdAt,
+                                                    userPic: user.profilePic
+                                                }
+                                            });
+                        
+                                            pubsub.publish('NOTIFICATION', { 
+                                                conversationId: args.conversationId, currentUser: context.user
+                                            });
+
+                                            return participant;
+                                        })
                                     })
                                 })
                             })
@@ -1058,32 +1079,39 @@ const resolvers = {
                                         userId: context.user
                                     })
                                     .then((message) => {
-                                        let participant = {
-                                            userId: context.user,
-                                            name: context.userName,
-                                            level: 2,
-                                            profilePic: context.userPic,
-                                            player: true,
-                                            wasInterested: true
-                                        };
-    
-                                        pubsub.publish('NEW_PARTICIPANT', {
-                                            participantJoined: participant, gameId: args.gameId
-                                        });
-
-                                        pubsub.publish('MESSAGE_ADDED', {
-                                            messageAdded: {
-                                                node: message.dataValues,
-                                                cursor: message.dataValues.updatedAt,
-                                                userPic: context.userPic
+                                        return User.findOne({
+                                            where: {
+                                                id: context.user
                                             }
-                                        });
-                    
-                                        pubsub.publish('NOTIFICATION', { 
-                                            conversationId: args.conversationId, currentUser: context.user
-                                        });
-                                        
-                                        return participant;
+                                        })
+                                        .then( user => {
+                                            let participant = {
+                                                userId: context.user,
+                                                name: user.name,
+                                                level: 2,
+                                                profilePic: user.profilePic,
+                                                player: true,
+                                                wasInterested: true
+                                            };
+        
+                                            pubsub.publish('NEW_PARTICIPANT', {
+                                                participantJoined: participant, gameId: args.gameId
+                                            });
+
+                                            pubsub.publish('MESSAGE_ADDED', {
+                                                messageAdded: {
+                                                    node: message.dataValues,
+                                                    cursor: message.dataValues.createdAt,
+                                                    userPic: user.profilePic
+                                                }
+                                            });
+                        
+                                            pubsub.publish('NOTIFICATION', { 
+                                                conversationId: args.conversationId, currentUser: context.user
+                                            });
+
+                                            return participant;
+                                        })
                                     })
                                 })
                             })
@@ -1136,31 +1164,38 @@ const resolvers = {
                         userId: context.user
                     })
                     .then((message) => {
-                        let participant = {
-                            userId: context.user,
-                            name: context.userName,
-                            level: 2,
-                            profilePic: context.userPic,
-                            player: false
-                        };
-
-                        pubsub.publish('NEW_PARTICIPANT', {
-                            participantJoined: participant, gameId: args.gameId
-                        });
-
-                        pubsub.publish('MESSAGE_ADDED', {
-                            messageAdded: {
-                                node: message.dataValues,
-                                cursor: message.dataValues.updatedAt,
-                                userPic: context.userPic
+                        return User.findOne({
+                            where: {
+                                id: context.user
                             }
-                        });
+                        })
+                        .then( user => {
+                            let participant = {
+                                userId: context.user,
+                                name: context.userName,
+                                level: 2,
+                                profilePic: user.profilePic,
+                                player: false
+                            };
     
-                        pubsub.publish('NOTIFICATION', { 
-                            conversationId: args.conversationId, currentUser: context.user
-                        });
-                        
-                        return participant;
+                            pubsub.publish('NEW_PARTICIPANT', {
+                                participantJoined: participant, gameId: args.gameId
+                            });
+    
+                            pubsub.publish('MESSAGE_ADDED', {
+                                messageAdded: {
+                                    node: message.dataValues,
+                                    cursor: message.dataValues.updatedAt,
+                                    userPic: user.profilePic
+                                }
+                            });
+        
+                            pubsub.publish('NOTIFICATION', { 
+                                conversationId: args.conversationId, currentUser: context.user
+                            });
+                            
+                            return participant;
+                        })
                     })
                 }
                 else if (participant && participant.level == 3) {
@@ -1178,31 +1213,38 @@ const resolvers = {
                             userId: context.user
                         })
                         .then((message) => {
-                            let participant = {
-                                userId: context.user,
-                                name: context.userName,
-                                level: 2,
-                                profilePic: context.userPic,
-                                player: false
-                            };
-    
-                            pubsub.publish('NEW_PARTICIPANT', {
-                                participantJoined: participant, gameId: args.gameId
-                            });
-
-                            pubsub.publish('MESSAGE_ADDED', {
-                                messageAdded: {
-                                    node: message.dataValues,
-                                    cursor: message.dataValues.updatedAt,
-                                    userPic: context.userPic
+                            return User.findOne({
+                                where: {
+                                    id: context.user
                                 }
-                            });
+                            })
+                            .then( user => {
+                                let participant = {
+                                    userId: context.user,
+                                    name: context.userName,
+                                    level: 2,
+                                    profilePic: user.profilePic,
+                                    player: false
+                                };
         
-                            pubsub.publish('NOTIFICATION', { 
-                                conversationId: args.conversationId, currentUser: context.user
-                            });
-                            
-                            return participant;
+                                pubsub.publish('NEW_PARTICIPANT', {
+                                    participantJoined: participant, gameId: args.gameId
+                                });
+
+                                pubsub.publish('MESSAGE_ADDED', {
+                                    messageAdded: {
+                                        node: message.dataValues,
+                                        cursor: message.dataValues.updatedAt,
+                                        userPic: user.profilePic
+                                    }
+                                });
+            
+                                pubsub.publish('NOTIFICATION', { 
+                                    conversationId: args.conversationId, currentUser: context.user
+                                });
+                                
+                                return participant;
+                            })
                         })
                     })
                 } 
@@ -1248,31 +1290,38 @@ const resolvers = {
                             userId: context.user
                         })
                         .then((message) => {
-                            let participant = {
-                                userId: context.user,
-                                name: context.userName,
-                                level: 2,
-                                profilePic: context.userPic,
-                                player: false
-                            };
-    
-                            pubsub.publish('PARTICIPANT_LEFT', {
-                                participantLeft: participant, gameId: args.gameId
-                            });
-
-                            pubsub.publish('MESSAGE_ADDED', {
-                                messageAdded: {
-                                    node: message.dataValues,
-                                    cursor: message.dataValues.updatedAt,
-                                    userPic: context.userPic
+                            return User.findOne({
+                                where: {
+                                    id: context.user
                                 }
-                            });
+                            })
+                            .then( user => {
+                                let participant = {
+                                    userId: context.user,
+                                    name: context.userName,
+                                    level: 2,
+                                    profilePic: user.profilePic,
+                                    player: false
+                                };
         
-                            pubsub.publish('NOTIFICATION', { 
-                                conversationId: args.conversationId, currentUser: context.user
-                            });
-                            
-                            return participant;
+                                pubsub.publish('PARTICIPANT_LEFT', {
+                                    participantLeft: participant, gameId: args.gameId
+                                });
+
+                                pubsub.publish('MESSAGE_ADDED', {
+                                    messageAdded: {
+                                        node: message.dataValues,
+                                        cursor: message.dataValues.updatedAt,
+                                        userPic: user.profilePic
+                                    }
+                                });
+            
+                                pubsub.publish('NOTIFICATION', { 
+                                    conversationId: args.conversationId, currentUser: context.user
+                                });
+                                
+                                return participant;
+                            })
                         })
                     } else {
                         const error = new Error('Could not unsubscribe');
@@ -1330,23 +1379,31 @@ const resolvers = {
                                     userId: context.user
                                 })
                                 .then((message) => {
-                                    pubsub.publish('PARTICIPANT_LEFT', {
-                                        participantLeft: { userId: context.user, player: true, userId: context.user }, gameId: args.gameId
-                                    });
-
-                                    pubsub.publish('MESSAGE_ADDED', {
-                                        messageAdded: {
-                                            node: message.dataValues,
-                                            cursor: message.dataValues.updatedAt,
-                                            userPic: context.userPic
+                                    return User.findOne({
+                                        where: {
+                                            id: context.user
                                         }
-                                    });
+                                    })
+                                    .then( user => {
 
-                                    pubsub.publish('NOTIFICATION', { 
-                                        conversationId: args.conversationId, currentUser: context.user
-                                    });
+                                        pubsub.publish('PARTICIPANT_LEFT', {
+                                            participantLeft: { userId: context.user, player: true, userId: context.user }, gameId: args.gameId
+                                        });
 
-                                    return { userId: context.user }
+                                        pubsub.publish('MESSAGE_ADDED', {
+                                            messageAdded: {
+                                                node: message.dataValues,
+                                                cursor: message.dataValues.updatedAt,
+                                                userPic: user.profilePic
+                                            }
+                                        });
+
+                                        pubsub.publish('NOTIFICATION', { 
+                                            conversationId: args.conversationId, currentUser: context.user
+                                        });
+
+                                        return { userId: context.user }
+                                    })
                                 })
                             } else {
                                 const error = new Error('Could not leave game');
