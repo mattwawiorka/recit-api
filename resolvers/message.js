@@ -168,7 +168,7 @@ const resolvers = {
                                     } 
                                 }
                             },
-                            order: [ [ 'updatedAt', 'DESC' ]]
+                            order: [ [ 'createdAt', 'DESC' ]]
                         };
 
                         if (p.level == 3) {
@@ -191,7 +191,7 @@ const resolvers = {
                                             type: message[0].type,
                                             gameId: message[0].gameId,
                                             conversationId: message[0].conversationId,
-                                            updatedAt: message[0].updatedAt,
+                                            createdAt: message[0].createdAt,
                                             content: message[0].content.split('%REPLY%')[1]
                                         }, 
                                         conversation: conversation.title, 
@@ -218,7 +218,7 @@ const resolvers = {
                 .then(() => {
                     sortedEdges = edges.sort( (a,b) => {
                         let comparison;
-                        if (a.node.updatedAt < b.node.updatedAt) {
+                        if (a.node.createdAt < b.node.createdAt) {
                             comparison = 1;
                         } else {
                             comparison = -1;
@@ -226,7 +226,7 @@ const resolvers = {
                         return comparison;
                     });
 
-                    endCursor = sortedEdges[sortedEdges.length - 1].node.updatedAt;
+                    endCursor = sortedEdges[sortedEdges.length - 1].node.createdAt;
 
                     return {
                         totalCount: 0,
@@ -278,7 +278,7 @@ const resolvers = {
                     pubsub.publish('MESSAGE_ADDED', {
                         messageAdded: {
                             node: message,
-                            cursor: message.updatedAt,
+                            cursor: message.createdAt,
                             userPic: user.profilePic
                         }
                     })

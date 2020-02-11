@@ -23,7 +23,7 @@ const Message = sequelize.define('message',
     type: {
       type: Sequelize.INTEGER,
       allowNull: false,
-      defaultValue: "1"
+      defaultValue: 1
     },
     reply: {
       type: Sequelize.BOOLEAN,
