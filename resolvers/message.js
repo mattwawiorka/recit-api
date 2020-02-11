@@ -181,7 +181,26 @@ const resolvers = {
 
                         return Message.findAll(messageOptions)
                         .then( message => {
-                            if (message.length > 0) {
+                            
+                            if (message.length > 0 && message[0].reply) {
+                                edges.push(
+                                    { 
+                                        node: {
+                                            id: message[0].id,
+                                            author: message[0].author,
+                                            type: message[0].type,
+                                            gameId: message[0].gameId,
+                                            conversationId: message[0].conversationId,
+                                            updatedAt: message[0].updatedAt,
+                                            content: message[0].content.split('%REPLY%')[1]
+                                        }, 
+                                        conversation: conversation.title, 
+                                        forGame: Boolean(message[0].gameId),
+                                        isNew: p.hasUpdate 
+                                    }
+                                );
+                            }
+                            else if (message.length > 0) {
                                 edges.push(
                                     { 
                                         node: message[0], 
@@ -252,7 +271,8 @@ const resolvers = {
                     conversationId: args.messageInput.conversationId,
                     gameId: args.messageInput.gameId,
                     author: user.name,
-                    content: args.messageInput.content
+                    content: args.messageInput.content,
+                    reply: args.messageInput.reply ? args.messageInput.reply : false
                 })
                 .then( message => {
                     pubsub.publish('MESSAGE_ADDED', {

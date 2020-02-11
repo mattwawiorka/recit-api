@@ -11,6 +11,7 @@ const typeDef = `
         createdAt: String
         type: Int
         gameId: ID
+        reply: Boolean
     }
 
     type MessageEdge {
@@ -33,6 +34,7 @@ const typeDef = `
         conversationId: ID!
         gameId: ID
         content: String!
+        reply: Boolean
     }
 
     type Query {
