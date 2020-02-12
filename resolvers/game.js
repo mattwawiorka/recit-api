@@ -9,6 +9,7 @@ const validator = require('validator');
 const dateTool = require('../util/dateTool');
 const { withFilter } = require('apollo-server');
 const pubsub = require('../util/redis');
+const { SPORT } = require('../util/lists');
 
 GAMES_PER_PAGE = 15;
 
@@ -92,6 +93,7 @@ const resolvers = {
         games: (parent, args, context) => {
 
             let cursor = args.cursor ? new Date(parseInt(args.cursor)) : Date.now();
+            let category = args.category ? args.category : "ALL"
             let sport = args.sport ? args.sport : "ALL"
             let startDate = args.startDate ? args.startDate : "ALL"
             let bounds = (args.bounds[0]) ? args.bounds : [47.7169839910907, -122.32040939782564, 47.54058537009015, -122.3709744021744];
@@ -128,12 +130,15 @@ const resolvers = {
                 order: [
                     ["dateTime", "ASC"]
                 ],
-                // game.id here
                 group: ['game.id', 'spots', 'spotsReserved'],
             };
 
+            if (category !== "ALL") {
+                options.where.category = category; 
+            }
+
             if (sport !== "ALL") {
-                options.where.sport = sport 
+                options.where.sport = sport; 
             }
 
             if (startDate !== "ALL") {
@@ -458,7 +463,8 @@ const resolvers = {
     },
     Mutation: {
         createGame: (parent, args, context) => {
-            let { title, dateTime, endDateTime, venue, address, coords, sport, spots, spotsReserved, description, public } = args.gameInput;
+            let { title, dateTime, endDateTime, venue, address, coords, category, sport, spots, spotsReserved, description, public } = args.gameInput;
+            let image;
             const errors = [];
 
             const now = new Date();
@@ -475,12 +481,18 @@ const resolvers = {
                 throw error;
             }
 
-            if (!title || !dateTime || !sport || !description || !spots || (public == null)) {
+            if (!title || !dateTime || !sport || !category || !description || !spots || (public == null)) {
                 const error = new Error('Please fill in all fields');
                 error.code = 401;   
                 throw error;
             }
 
+            if (category != "SPORT" && category != "BOARD" && category != "CARD" && category != "VIDEO") {
+                errors.push({ 
+                    message: 'Please select a valid category',
+                    field: 'category' 
+                });
+            }
             if (!address && !venue) {
                 errors.push({ 
                     message: 'Please select a valid address',
@@ -525,6 +537,22 @@ const resolvers = {
                 throw error;
             }
 
+            if (category === "SPORT" && SPORT.includes(sport)) {
+                image = "/" + sport + ".png";
+            }  
+            else if (category === "SPORT") {
+                image = "/RECIT.png"
+            }
+            else if (category === "BOARD") {
+                image = "/BOARD.png";
+            }
+            else if (category === "CARD") {
+                image = "/CARD.png";
+            }
+            else if (category === "VIDEO") {
+                image = "/VIDEO.png";
+            }
+
             // Check if user is already hosting a game during this time period
             return Player.findAndCountAll({
                 where: {
@@ -562,13 +590,14 @@ const resolvers = {
                             venue: venue,
                             address: address,
                             location: { type: 'Point', coordinates: coords },
+                            category: category,
                             sport: sport,
                             spots: spots,
                             spotsReserved: spotsReserved,
                             description: description,
                             public: public,
                             conversationId: conversation.id,
-                            image: "/" + sport + ".png"
+                            image: image
                         })
                         .then( game => {
                             // Create the host player
@@ -627,7 +656,8 @@ const resolvers = {
             });
         },
         updateGame: (parent, args, context) => {
-            let { title, dateTime, endDateTime, venue, address, coords, sport, spots, spotsReserved, description, public } = args.gameInput;
+            let { title, dateTime, endDateTime, venue, address, coords, category, sport, spots, spotsReserved, description, public } = args.gameInput;
+            let image;
             const errors = [];
 
             const now = new Date();
@@ -635,32 +665,81 @@ const resolvers = {
             const endD = new Date(endDateTime);
 
             if (!context.isAuth) {
-                errors.push({ message: 'Must be logged in to update game' });
+                const error = new Error('Must be logged in to create game');
+                error.code = 401;   
+                throw error;
             }
-            if (!title || !dateTime || !venue || !address || !sport || !description || !spots) {
-                errors.push({ message: 'Please fill in all required fields' });
+
+            if (!title || !dateTime || !sport || !category || !description || !spots || (public == null)) {
+                const error = new Error('Please fill in all fields');
+                error.code = 401;   
+                throw error;
             }
-            if ((spots < 1) || (spots > 32)) {
-                errors.push({ message: 'Number of players must be between 1-32' });
+
+            if (category != "SPORT" && category != "BOARD" && category != "CARD" && category != "VIDEO") {
+                errors.push({ 
+                    message: 'Please select a valid category',
+                    field: 'category' 
+                });
+            }
+            if (!address && !venue) {
+                errors.push({ 
+                    message: 'Please select a valid address',
+                    field: 'address' 
+                });
+            }
+            if ((spots < 2) || (spots > 32)) {
+                errors.push({ 
+                    message: 'Number of players must be between 2-32',
+                    field: 'spots' 
+                });
             }
             if (spotsReserved > (spots - 2)) {
-                errors.push({ message: 'Need at least 1 unreserved spot for public game'});
+                errors.push({ 
+                    message: 'Need at least 1 unreserved spot for public game',
+                    field: 'spots' 
+                });
             }
             if (!validator.isLength(description, { min: undefined, max: 1000 })) {
-                errors.push({ message: 'Description must be less than 1000 characters' });
+                errors.push({ 
+                    message: 'Description must be less than 1000 characters',
+                    field: 'description' 
+                });
             }
             if (!(parseInt(d.valueOf()) > parseInt(now.valueOf()))) {
-                errors.push({ message: 'Start date cannot be in the past' });
+                errors.push({ 
+                    message: 'Start date cannot be in the past',
+                    field: 'date' 
+                });
             }
             if (!(parseInt(endD.valueOf()) > parseInt(d.valueOf()))) {
-                errors.push({ message: 'End date cannot be before starting date' });
+                errors.push({ 
+                    message: 'End date cannot be before starting date',
+                    field: 'endDate' 
+                });
             }
 
             if (errors.length > 0) {
-                const error = new Error('Could not update game');
+                const error = new Error('Could not create game');
                 error.data = errors;
                 error.code = 401;   
                 throw error;
+            }
+
+            if (category === "SPORT" && SPORT.includes(sport)) {
+                image = "/" + sport + ".png";
+            }  
+            else if (category === "SPORT") {
+                image = "/RECIT.png"
+            }
+            else if (category === "BOARD") {
+                image = "/BOARD.png";
+            }
+            else if (category === "CARD") {
+                image = "/CARD.png";
+            }
+            else if (category === "VIDEO") {
+                image = "/VIDEO.png";
             }
 
             return Game.findOne({
@@ -713,12 +792,13 @@ const resolvers = {
                             venue: venue || game.venue,
                             address: address || game.address,
                             location: coords ? {type: 'Point', coordinates: coords} : game.location,
+                            category: category || game.category,
                             sport: sport || game.sport,
                             spots: spots || game.spots,
                             spotsReserved: (spotsReserved != null) ? spotsReserved : game.spotsReserved,
                             description: description || game.description,
                             public: public,
-                            image: sport ? "/" + sport + ".png" : game.image
+                            image: sport ? image : game.image
                         }) 
                         .then( result => {
                             if (!result) {

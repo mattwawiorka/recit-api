@@ -33,6 +33,10 @@ const Game = sequelize.define('game',
       type: Sequelize.GEOMETRY('POINT', 4326),
       allowNull: false
     },
+    category: {
+      type: Sequelize.STRING(10),
+      allowNull: false
+    },
     sport: {
       type: Sequelize.STRING(50),
       allowNull: false
