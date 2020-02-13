@@ -62,7 +62,7 @@ const User = sequelize.define('user',
       defaultValue: 'http://localhost:8080/images/profile-blank.png'
     },
     loginLocation: {
-      type: Sequelize.GEOMETRY('POINT', 4326)
+      type: Sequelize.GEOMETRY('POINT', 4326),
     },
     city: {
       type: Sequelize.STRING

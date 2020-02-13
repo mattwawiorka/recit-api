@@ -226,7 +226,9 @@ const resolvers = {
                         return comparison;
                     });
 
-                    endCursor = sortedEdges[sortedEdges.length - 1].node.createdAt;
+                    if (sortedEdges.length > 0) {
+                        endCursor = sortedEdges[sortedEdges.length - 1].node.createdAt;
+                    }
 
                     return {
                         totalCount: 0,

@@ -73,7 +73,7 @@ const resolvers = {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
                 throw error;
-            }
+            }         
 
             // 10 Users returned at a time
             let limit = 10;
@@ -89,6 +89,16 @@ const resolvers = {
                 },
                 limit: limit,
                 attributes: {},
+            }
+
+            // If user includes jersey number in search, use it
+            if (args.name.match(/\d{2}/)) {
+                let jerseyNumber = args.name.match(/\d{2}/)[0];
+                let index = args.name.match(/\d{2}/).index;
+                options.where.number = jerseyNumber;
+                options.where.name = {
+                    [Op.like]: '%' + args.name.substring(0, index) + '%'
+                }
             }
 
             // Sort by distance to users last login location
@@ -240,6 +250,10 @@ const resolvers = {
         // Login with Facebook
         loginFb: (parent, args) => {
             const { facebookToken, facebookId, loginLocation } = args.userInput;
+
+            if (!loginLocation || loginLocation.lengt < 2) {
+                loginLocation = [47.621354, -122.333289];
+            }
 
             return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${API.fbAppId}|${API.fbSecret}`)
             .then(response => {
@@ -421,6 +435,16 @@ const resolvers = {
 
             const { phoneNumber, phoneCode, loginLocation, name, dob, gender } = args.userInput;
 
+            if (name && !(/^[a-z\s]+$/i.test(name))) {
+                const error = new Error('User name can only contain letters');
+                error.code = 401;
+                throw error;
+            }
+
+            if (!loginLocation || loginLocation.lengt < 2) {
+                loginLocation = [47.621354, -122.333289];
+            }
+
             return User.findOne({
                 where: {
                     phoneNumber: phoneNumber,
@@ -503,14 +527,14 @@ const resolvers = {
             })
         },
         updateUser: (parent, args, context) => {
-            if (!context.isAuth) {
+            if (!context.isAuth || args.userId != context.user) {
                 const error = new Error('Unauthorized user');
                 error.code = 401;
                 throw error;
             }
 
-            if (args.userId != context.user) {
-                const error = new Error('Unauthorized user');
+            if (args.userInput.name && !(/^[a-z\s]+$/i.test(args.userInput.name))) {
+                const error = new Error('User name can only contain letters');
                 error.code = 401;
                 throw error;
             }

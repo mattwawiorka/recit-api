@@ -487,6 +487,13 @@ const resolvers = {
                 throw error;
             }
 
+            if (title.length > 50) {
+                errors.push({ 
+                    message: 'Title must be fewer than 50 characters',
+                    field: 'title' 
+                });
+            }
+
             if (category != "SPORT" && category != "BOARD" && category != "CARD" && category != "VIDEO") {
                 errors.push({ 
                     message: 'Please select a valid category',
@@ -537,7 +544,7 @@ const resolvers = {
                 throw error;
             }
 
-            if (category === "SPORT" && SPORT.includes(sport)) {
+            if (category === "SPORT" && SPORT.find( s => s.value === sport)) {
                 image = "/" + sport + ".png";
             }  
             else if (category === "SPORT") {
@@ -726,7 +733,7 @@ const resolvers = {
                 throw error;
             }
 
-            if (category === "SPORT" && SPORT.includes(sport)) {
+            if (category === "SPORT" && SPORT.find( s => s.value === sport)) {
                 image = "/" + sport + ".png";
             }  
             else if (category === "SPORT") {

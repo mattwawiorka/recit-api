@@ -11,7 +11,7 @@ const Game = sequelize.define('game',
       primaryKey: true
     },
     title: {
-      type: Sequelize.STRING,
+      type: Sequelize.STRING(50),
       allowNull: false
     },
     dateTime: {
