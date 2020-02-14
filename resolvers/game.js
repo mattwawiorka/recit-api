@@ -787,6 +787,8 @@ const resolvers = {
                 })
                 .then(host => {
                     const oldSpotsReserved = game.dataValues.spotsReserved;
+                    const oldAddress = game.dataValues.address;
+                    const oldDateTime = game.dataValues.dateTime;
                     if (host.userId != context.user) {
                         const error = new Error('Only host can edit game');
                         throw error;
@@ -811,7 +813,51 @@ const resolvers = {
                             if (!result) {
                                 const error = new Error('Could not update game');
                                 throw error;
-                            } else {
+                            } else { 
+                                // If address or date/time are changed send a notification
+                                if (oldAddress.localeCompare(result.getDataValue('address')) != 0 || oldDateTime.toString().localeCompare(result.getDataValue('dateTime').toString()) != 0) {
+                                    let content;
+                                    if (oldAddress.localeCompare(result.getDataValue('address')) != 0 && oldDateTime.toString().localeCompare(result.getDataValue('dateTime').toString()) != 0) {
+                                        content = "updated game time and location";
+                                    }
+                                    else if (oldAddress.localeCompare(result.getDataValue('address')) != 0) {
+                                        content = "updated game location";
+                                    }
+                                    else if (oldDateTime.toString().localeCompare(result.getDataValue('dateTime').toString()) != 0) {
+                                        content = "updated game time";
+                                    }
+
+                                    User.findOne({
+                                        where: {
+                                            id: context.user
+                                        }
+                                    }).then( user => {
+                                        Message.create({
+                                            content: content,
+                                            author: user.name,
+                                            type: 4,
+                                            gameId: game.id,
+                                            conversationId: game.conversationId,
+                                            userId: context.user
+                                        })
+                                        .then((message) => {
+
+                                            pubsub.publish('MESSAGE_ADDED', {
+                                                messageAdded: {
+                                                    node: message.dataValues,
+                                                    cursor: message.dataValues.createdAt,
+                                                    userPic: user.profilePic
+                                                }
+                                            });
+                        
+                                            pubsub.publish('NOTIFICATION', { 
+                                                conversationId: game.conversationId, currentUser: context.user
+                                            });
+                                        })
+                                    })
+                                }
+                                   
+                                // If reserved spots were added or taken away -> add/remove them
                                 if (result.dataValues.spotsReserved > oldSpotsReserved) {
                                     let promises = [];
                                     // create new reserved player spots
