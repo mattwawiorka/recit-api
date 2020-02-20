@@ -26,6 +26,7 @@
     "mysql2": "^1.7.0",
     "node-fetch": "^2.6.0",
     "sequelize": "^5.19.6",
+    "sharp": "^0.24.1",
     "subscriptions-transport-ws": "^0.9.16",
     "twilio": "^3.39.3",
     "validator": "^11.1.0"

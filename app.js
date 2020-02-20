@@ -10,6 +10,7 @@ const graphqlHTTP = require('express-graphql');
 const cors = require('cors');
 const fs = require('fs');
 const multer = require('multer');
+const sharp = require('sharp');
 
 // const { createServer } = require('https');
 
@@ -96,8 +97,38 @@ app.post('/post-image', (req, res) => {
     if (err) {
       return res.status(500).json(err)
     }
-    return res.status(200).send(req.body)
+    return Promise.all(req.files.map( image => {
+      // Create thumbnail, small, medium, and large copies of all user images
+      return sharp(image.path)
+      .resize(48, 48)
+      .toFile(image.path.split('.')[0] + '_THUMB.' + image.path.split('.')[1])
+      .then(() => {
+        return sharp(image.path)
+        .resize(175, 175)
+        .toFile(image.path.split('.')[0] + '_SMALL.' + image.path.split('.')[1])
+        .then(() => {
+          return sharp(image.path)
+          .resize(350, 350)
+          .toFile(image.path.split('.')[0] + '_MEDIUM.' + image.path.split('.')[1])
+          .then(() => {
+            return sharp(image.path)
+            .resize(600, 600)
+            .toFile(image.path.split('.')[0] + '_LARGE.' + image.path.split('.')[1])
+            .then(() => {
+              fs.unlinkSync(image.path); 
+            })
+          })
+        })
+      })
+      .catch( error => {
+        console.log(error);
+      })
+    }))
+    .then(() => {
+      return res.status(200).send(req.body);
+    })
   })
+
 });
 
 app.use(

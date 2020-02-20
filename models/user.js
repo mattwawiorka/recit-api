@@ -3,6 +3,7 @@ const Sequelize = require('sequelize');
 const sequelize = require('../util/db');
 
 const fs = require('fs');
+const path = require('path');
 
 const User = sequelize.define('user', 
   {
@@ -47,19 +48,19 @@ const User = sequelize.define('user',
     },
     profilePic: {
       type: Sequelize.STRING,
-      defaultValue: 'http://localhost:8080/images/profile-blank.png'
+      defaultValue: 'http://localhost:8080/images/profile-blank.jpg'
     },
     pic1: {
       type: Sequelize.STRING,
-      defaultValue: 'http://localhost:8080/images/profile-blank.png'
+      defaultValue: 'http://localhost:8080/images/profile-blank.jpg'
     },
     pic2: {
       type: Sequelize.STRING,
-      defaultValue: 'http://localhost:8080/images/profile-blank.png'
+      defaultValue: 'http://localhost:8080/images/profile-blank.jpg'
     },
     pic3: {
       type: Sequelize.STRING,
-      defaultValue: 'http://localhost:8080/images/profile-blank.png'
+      defaultValue: 'http://localhost:8080/images/profile-blank.jpg'
     },
     loginLocation: {
       type: Sequelize.GEOMETRY('POINT', 4326),
@@ -72,25 +73,38 @@ const User = sequelize.define('user',
     hooks: {
       // After updating pics, remove old ones from the server
       afterUpdate: (user) => {
-        // If pic is changed check if that pic is used elsewhere, if not - delete
+        // If pic is changed check if that pic is used elsewhere, if not - delete all copies
+        let dir = path.join(__dirname, '../images/' + user.id + '/');
         if (user.changed('profilePic')) {
-          if (Object.values(user.dataValues).indexOf(user.previous('profilePic')) < 0) {
-            fs.unlink(user.previous('profilePic').split('8080')[1], err => console.log(err))
+          if (user.previous('profilePic').includes('localhost') && Object.values(user.dataValues).indexOf(user.previous('profilePic')) < 0) {
+            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('profilePic').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('profilePic').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('profilePic').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('profilePic').split('.')[1], error => console.log(error));
           }
         }
         if (user.changed('pic1')) {
           if (Object.values(user.dataValues).indexOf(user.previous('pic1')) < 0) {
-            fs.unlink('images/' + user.id + '/' + user.previous('pic1').split('/')[5], err => console.log(err))
+            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('pic1').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('pic1').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('pic1').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('pic1').split('.')[1], error => console.log(error));
           }
         }
         if (user.changed('pic2')) {
           if (Object.values(user.dataValues).indexOf(user.previous('pic2')) < 0) {
-            fs.unlink(user.previous('pic2').split('8080')[1], err => console.log(err))
+            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('pic2').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('pic2').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('pic2').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('pic2').split('.')[1], error => console.log(error));
           }
         }
         if (user.changed('pic3')) {
           if (Object.values(user.dataValues).indexOf(user.previous('pic3')) < 0) {
-            fs.unlink(user.previous('pic3').split('8080')[1], err => console.log(err))
+            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('pic3').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('pic3').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('pic3').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('pic3').split('.')[1], error => console.log(error));
           }
         }
       }
