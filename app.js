@@ -218,8 +218,8 @@ Message.belongsTo(Game, { constraints: true });
 Message.belongsTo(Conversation, { constraints: true, onUpdate: 'CASCADE' });
 
 const server = createServer({
-  key: fs.readFileSync('server.key'),
-  cert: fs.readFileSync('server.cert')
+  // key: fs.readFileSync('server.key'),
+  // cert: fs.readFileSync('server.cert')
 }, app);
 
 sequelize
