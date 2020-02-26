@@ -2,8 +2,8 @@
 const { RedisPubSub } = require('graphql-redis-subscriptions');
 const Redis = require('ioredis');
 const options = {
-    host: '127.0.0.1',
-    port: '6379',
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT,
     retryStrategy: times => {
       // reconnect after
       return Math.min(times * 50, 2000);

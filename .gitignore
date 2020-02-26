@@ -4,3 +4,7 @@ npm-debug.log
 api.json
 .vscode
 images
+server.cert
+server.key
+.env
+RECIT-API.pem

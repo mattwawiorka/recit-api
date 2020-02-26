@@ -1,14 +1,12 @@
 const Sequelize = require('sequelize').Sequelize;
 
-const db = require('../db.json');
-
-const sequelize = new Sequelize(db.database, db.user, db.password, {
+const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
   dialect: 'mysql',
-  host: 'localhost',
-  port: '3306',
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
   logging: false,
 });
 
-sequelize.query("SET GLOBAL sql_mode = ''", { raw: true });
+sequelize.query("SET GLOBAL sql_mode = ''", { raw: true })
 
 module.exports = sequelize;

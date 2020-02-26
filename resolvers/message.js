@@ -6,6 +6,8 @@ const Participant = require('../models/participant');
 const { withFilter } = require('apollo-server');
 const pubsub = require('../util/redis');
 
+const debug = require('debug')('message');
+
 MESSAGES_PER_PAGE = 15;
 
 const resolvers = {
@@ -121,11 +123,11 @@ const resolvers = {
                 })
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             });
         },
-        // Get the most recent, pertinent message for user for each of the users conversations they are participated in
+        // Get the most recent, pertinent message for each of a users conversations they are participated in
         inbox: (parent, args, context) => {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
@@ -161,7 +163,8 @@ const resolvers = {
                                 conversationId: conversation.dataValues.id,
                                 [Op.or]: {
                                     type: {
-                                        [Op.values]: [1,2,5]
+                                        // Only get notifications/invites not from you
+                                        [Op.values]: [1,2,5] 
                                     },
                                     userId: {
                                         [Op.ne]: context.user
@@ -171,6 +174,7 @@ const resolvers = {
                             order: [ [ 'createdAt', 'DESC' ]]
                         };
 
+                        // If user is only participating by invite only retrieve the invite
                         if (p.level == 3) {
                             messageOptions.where.type = 3;
                         } else {
@@ -181,7 +185,6 @@ const resolvers = {
 
                         return Message.findAll(messageOptions)
                         .then( message => {
-                            
                             if (message.length > 0 && message[0].reply) {
                                 edges.push(
                                     { 
@@ -241,7 +244,7 @@ const resolvers = {
                 }) 
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             });
         },
@@ -297,7 +300,7 @@ const resolvers = {
                 })
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             })
         },
@@ -335,7 +338,7 @@ const resolvers = {
                 })
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             });
         },
@@ -375,10 +378,11 @@ const resolvers = {
                 })
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             })
         },
+        // Invite user to a game
         addToConversation: (parent, args, context) => {
 
             if (!context.isAuth) {
@@ -457,7 +461,7 @@ const resolvers = {
                 })
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
             }) 
         }
     }

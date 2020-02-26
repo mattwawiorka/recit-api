@@ -11,6 +11,8 @@ const { withFilter } = require('apollo-server');
 const pubsub = require('../util/redis');
 const { SPORT } = require('../util/lists');
 
+const debug = require('debug')('game');
+
 GAMES_PER_PAGE = 15;
 
 const resolvers = {
@@ -201,7 +203,7 @@ const resolvers = {
                 }
             })
             .catch(error => {
-                console.log(error)
+                debug(error)
                 throw error;
             });
         },
@@ -255,7 +257,7 @@ const resolvers = {
                     return game.dataValues;
                 }
             }).catch(error => {
-                console.log(error)
+                debug(error)
                 throw error;
             });
         },
@@ -281,14 +283,13 @@ const resolvers = {
                 }  
             })
             .catch(error => {
-                console.log(error)
+                debug(error)
                 throw error;
             })
         },
         // Get players for game
         players: (parent, args, context) => {
             // Don't allow users to view games if they are not logged in
-            // For now - may come up with a different solution later
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
                 error.code = 401;
@@ -306,7 +307,7 @@ const resolvers = {
                     if (p.level == 3) {
                         let participant = {
                             level: p.level,
-                            profilePic: 'http://localhost:8080/images/profile-blank.png',
+                            profilePic: 'http://localhost:8080/images/profile-blank_THUMB.jpg',
                             isMe: false,
                             player: true
                         };
@@ -339,7 +340,7 @@ const resolvers = {
                 })
             })
             .catch(error => {
-                console.log(error)
+                debug(error)
                 throw error;
             });
         },
@@ -379,7 +380,7 @@ const resolvers = {
                 })
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             })
         },
@@ -658,7 +659,7 @@ const resolvers = {
                 }
             })
             .catch(error => {
-                // console.log(error)
+                // debug(error)
                 throw error;
             });
         },
@@ -868,7 +869,7 @@ const resolvers = {
                                         })
                                         .then(() => {
                                             pubsub.publish('NEW_PARTICIPANT', {
-                                                participantJoined: { level: 3, player: true, profilePic: 'http://localhost:8080/images/profile-blank.png' }, gameId: args.id
+                                                participantJoined: { level: 3, player: true, profilePic: 'http://localhost:8080/images/profile-blank_THUMB.jpg' }, gameId: args.id
                                             });
                                         }))
                                     }
@@ -909,7 +910,7 @@ const resolvers = {
                 }); 
             })
             .catch(error => {
-                console.log(error)
+                debug(error)
                 throw error;
             });          
         },
@@ -972,7 +973,7 @@ const resolvers = {
                 })      
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             });
         },
@@ -1264,7 +1265,7 @@ const resolvers = {
                 })
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             });
         },
@@ -1389,7 +1390,7 @@ const resolvers = {
                 }        
             }) 
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             });
         },
@@ -1463,7 +1464,7 @@ const resolvers = {
                 })
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             })
         },
@@ -1551,7 +1552,7 @@ const resolvers = {
                 })
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             });
         }

@@ -1,15 +1,16 @@
-const { Op, fn, col, literal, where } = require('sequelize');
+const { Op, fn, col, literal } = require('sequelize');
 const User = require('../models/user');
 const Player = require('../models/player');
 const Game = require('../models/game');
 const jwt = require('jsonwebtoken');
-const API = require('../api.json');
 const fetch = require('node-fetch');
-const twilio = require('twilio')(API.twilioSid, API.twilioToken);
+const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+
+const debug = require('debug')('user');
 
 const resolvers = {
     Query: {
-        // ADMIN view full users list - can filter by region
+        // ADMIN view full users list
         users: (parent, args, context) => {
             // Only admin user (mjw) can view full users list
             if (context.user != 1) {
@@ -22,7 +23,7 @@ const resolvers = {
             .then( users => {
                 return users;
             }).catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             });
         },
@@ -45,6 +46,7 @@ const resolvers = {
                 }
             })
         },
+        // Get user from id
         user: (parent, args, context) => {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
@@ -64,7 +66,7 @@ const resolvers = {
                     isMe: user.id == context.user
                 };
             }).catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             });
         },
@@ -189,15 +191,14 @@ const resolvers = {
         },
     },
     Mutation: {
-        // Create user from Facebook - no username for now
-        // May decide to implement username in the future for better player searching
+        // Create user from Facebook
         createUserFb: (parent, args) => {
             const { name, dob, gender, facebookId, facebookToken } = args.userInput;
 
             const jerseyNumber = Math.floor(10 + Math.random() * 90);
 
             // Verify Facebook access token is valid for our app
-            return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${API.fbAppId}|${API.fbSecret}`)
+            return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${process.env.FB_APPID}|${process.env.FB_SECRET}`)
             .then(response => {
                 return response.json()
                 .then(response => {
@@ -223,7 +224,7 @@ const resolvers = {
                             }
 
                             // Use Facebook API to get higher quality version of users profile pic
-                            return fetch(`https://graph.facebook.com/${facebookId}/picture?height=720&width=720&access_token=${facebookToken}`)
+                            return fetch(`https://graph.facebook.com/${process.env.FB_APPID}/picture?height=600&width=600&access_token=${facebookToken}`)
                             .then(response => {
                                 if (response.url) {
                                     return user.update({ profilePic: response.url })
@@ -243,7 +244,7 @@ const resolvers = {
                 })
             })  
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             })
         },
@@ -255,7 +256,7 @@ const resolvers = {
                 loginLocation = [47.621354, -122.333289];
             }
 
-            return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${API.fbAppId}|${API.fbSecret}`)
+            return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${process.env.FB_APPID}|${process.env.FB_SECRET}`)
             .then(response => {
                 return response.json()
                 .then(response => {
@@ -273,7 +274,7 @@ const resolvers = {
                             }
 
                             // Use Google maps API to get city from browser location
-                            return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${API.google}`)
+                            return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${process.env.GOOGLE_KEY}`)
                             .then(response => {
                                 return response.json()
                                 .then(JSONresult => {
@@ -329,7 +330,7 @@ const resolvers = {
                     }    
                 })    
             }).catch(error => {
-                console.log(error);
+                debug(error);
                 throw error
             });
         },
@@ -378,7 +379,7 @@ const resolvers = {
                 }
             })
             .catch(error => {
-                console.log(error)
+                debug(error)
                 if (error.code === 21211 || error.code === 21608) {
                     error.code = 400;
                     error.message = 'Could not send SMS to the provided phone number';
@@ -426,7 +427,7 @@ const resolvers = {
                 }
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             });
         },
@@ -455,7 +456,7 @@ const resolvers = {
                 // Phonenumber 
                 if (user) {
                     // Use Google maps API to get city from browser location
-                    return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${API.google}`)
+                    return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${process.env.GOOGLE_KEY}`)
                     .then(response => {
                         return response.json()
                         .then(JSONresult => {
@@ -522,7 +523,7 @@ const resolvers = {
                 }
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
                 throw error;
             })
         },
@@ -560,7 +561,7 @@ const resolvers = {
                 return result
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
             });
         },
         deleteUser: (parent, args) => {
@@ -582,16 +583,18 @@ const resolvers = {
                 }
             })
             .catch(error => {
-                console.log(error);
+                debug(error);
             });
         },
-        // ADMIN TEST FUNCTIONS
+        /************************** 
+        *   ADMIN TEST FUNCTIONS  *
+        ***************************/
         createTestUser: (parent, args, context) => {
-            // if (context.user != 1) {
-            //     const error = new Error('Unauthorized user');
-            //     error.code = 401;
-            //     throw error;
-            // }
+            if (context.user != 1) {
+                const error = new Error('Unauthorized user');
+                error.code = 401;
+                throw error;
+            }
 
             const jerseyNumber = Math.floor(10 + Math.random() * 90);
 
@@ -608,11 +611,11 @@ const resolvers = {
             })
         },
         loginTestUser: (parent, args, context) => {
-            // if (context.user != 1) {
-            //     const error = new Error('Unauthorized user');
-            //     error.code = 401;
-            //     throw error;
-            // }
+            if (context.user != 1) {
+                const error = new Error('Unauthorized user');
+                error.code = 401;
+                throw error;
+            }
 
             return User.findOne({
                 where: {

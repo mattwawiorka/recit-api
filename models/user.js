@@ -1,9 +1,10 @@
-const Sequelize = require('sequelize');
-
-const sequelize = require('../util/db');
-
 const fs = require('fs');
 const path = require('path');
+
+const Sequelize = require('sequelize');
+const sequelize = require('../util/db');
+
+const debug = require('debug')('images');
 
 const User = sequelize.define('user', 
   {
@@ -77,34 +78,34 @@ const User = sequelize.define('user',
         let dir = path.join(__dirname, '../images/' + user.id + '/');
         if (user.changed('profilePic')) {
           if (user.previous('profilePic').includes('localhost') && Object.values(user.dataValues).indexOf(user.previous('profilePic')) < 0) {
-            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('profilePic').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('profilePic').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('profilePic').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('profilePic').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('profilePic').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('profilePic').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('profilePic').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('profilePic').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('profilePic').split('.')[1], error => debug(error));
           }
         }
         if (user.changed('pic1')) {
           if (Object.values(user.dataValues).indexOf(user.previous('pic1')) < 0) {
-            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('pic1').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('pic1').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('pic1').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('pic1').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('pic1').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('pic1').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('pic1').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('pic1').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('pic1').split('.')[1], error => debug(error));
           }
         }
         if (user.changed('pic2')) {
           if (Object.values(user.dataValues).indexOf(user.previous('pic2')) < 0) {
-            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('pic2').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('pic2').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('pic2').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('pic2').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('pic2').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('pic2').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('pic2').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('pic2').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('pic2').split('.')[1], error => debug(error));
           }
         }
         if (user.changed('pic3')) {
           if (Object.values(user.dataValues).indexOf(user.previous('pic3')) < 0) {
-            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('pic3').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('pic3').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('pic3').split('.')[1], error => console.log(error));
-            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('pic3').split('.')[1], error => console.log(error));
+            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_THUMB.' + user.previous('pic3').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_SMALL.' + user.previous('pic3').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_MEDIUM.' + user.previous('pic3').split('.')[1], error => debug(error));
+            fs.unlink(dir + user.previous('pic3').split('/' + user.id + '/')[1].split('.')[0] + '_LARGE.' + user.previous('pic3').split('.')[1], error => debug(error));
           }
         }
       }
