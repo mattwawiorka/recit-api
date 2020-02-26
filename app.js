@@ -217,10 +217,7 @@ Message.belongsTo(User, { constraints: true });
 Message.belongsTo(Game, { constraints: true });
 Message.belongsTo(Conversation, { constraints: true, onUpdate: 'CASCADE' });
 
-const server = createServer({
-  // key: fs.readFileSync('server.key'),
-  // cert: fs.readFileSync('server.cert')
-}, app);
+const server = createServer(app);
 
 sequelize
   // .sync({ force: true })
