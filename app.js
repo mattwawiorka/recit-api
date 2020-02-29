@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
-const { createServer } = require('http');
+const http = require('http');
 const cors = require('cors');
 const express = require('express');
 const compression = require('compression');
@@ -72,20 +72,6 @@ const upload = multer({ storage: fileStorage, fileFilter: fileFilter }).single('
 const upload_multi = multer({ storage: fileStorage, fileFilter: fileFilter }).array('file');
 
 app.use('/images', express.static(path.join(__dirname, 'images')));
-
-// app.use((req, res, next) => {
-//     res.setHeader('Access-Control-Allow-Origin', '*');
-//     res.setHeader(
-//       'Access-Control-Allow-Methods',
-//       'OPTIONS, GET, POST, PUT, PATCH, DELETE'
-//     );
-//     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-//     if (req.method === 'OPTIONS') {
-//       return res.sendStatus(200);
-//     }
-
-//     next();
-// });
 
 // Set authorization context before performing resolver commands 
 app.use(auth);
@@ -217,27 +203,36 @@ Message.belongsTo(User, { constraints: true });
 Message.belongsTo(Game, { constraints: true });
 Message.belongsTo(Conversation, { constraints: true, onUpdate: 'CASCADE' });
 
-const server = createServer(app);
+// SSL
+// const httpsOptions = {
+//   key: fs.readFileSync('../key.pem'),
+//   cert: fs.readFileSync('../cert.pem'),
+//   passphrase: process.env.SSL_PASSPHRASE
+// }
+
+// const server = https.createServer(httpsOptions, app);
+
+const server = http.createServer(app);
 
 sequelize
-  // .sync({ force: true })
-  .sync()
-  .then( () => {
-    server.listen(process.env.PORT, () => {
-      console.log('Server listening on port ' + process.env.PORT)
-      new SubscriptionServer (
-        {
-          execute,
-          subscribe,
-          schema
-        },
-        {
-          server,
-          path: '/subscriptions'
-        }
-      );
-    })
+// .sync({ force: true })
+.sync()
+.then( () => {
+  server.listen(process.env.PORT, () => {
+    console.log('Server listening on port ' + process.env.PORT)
+    new SubscriptionServer (
+      {
+        execute,
+        subscribe,
+        schema
+      },
+      {
+        server,
+        path: '/subscriptions'
+      }
+    );
   })
-  .catch( error => {
-    debug_server(error);
-  });
+})
+.catch( error => {
+  debug_server(error);
+});

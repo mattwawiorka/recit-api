@@ -98,7 +98,7 @@ const resolvers = {
             let category = args.category ? args.category : "ALL"
             let sport = args.sport ? args.sport : "ALL"
             let startDate = args.startDate ? args.startDate : "ALL"
-            let bounds = (args.bounds[0]) ? args.bounds : [47.7169839910907, -122.32040939782564, 47.54058537009015, -122.3709744021744];
+            let bounds = (args.bounds && args.bounds.length === 4) ? args.bounds : [47.7169839910907, -122.32040939782564, 47.54058537009015, -122.3709744021744];
 
             const polygon = `POLYGON((${bounds[0].toString()}  ${bounds[1].toString()}, ${bounds[0].toString()}  ${bounds[3].toString()}, ${bounds[2].toString()}  ${bounds[3].toString()}, ${bounds[2].toString()}  ${bounds[1].toString()}, ${bounds[0].toString()}  ${bounds[1].toString()}))`;
 
@@ -231,8 +231,9 @@ const resolvers = {
                 }],
             })
             .then( game => {
-                if (!game) {
+                if (!game.id) {
                     const error = new Error('Could not find game');
+                    error.code = 404;
                     throw error;
                 } 
                 // If game is private, check if user has been invited
@@ -257,7 +258,7 @@ const resolvers = {
                     return game.dataValues;
                 }
             }).catch(error => {
-                debug(error)
+                debug(error);
                 throw error;
             });
         },
@@ -273,6 +274,7 @@ const resolvers = {
             .then(host => {
                 if (!host) {
                     const error = new Error('Could not find host');
+                    error.code = 404;
                     throw error;
                 } else {
                     return { 
@@ -283,7 +285,7 @@ const resolvers = {
                 }  
             })
             .catch(error => {
-                debug(error)
+                debug(error);
                 throw error;
             })
         },
@@ -304,10 +306,11 @@ const resolvers = {
             })
             .then( players => {
                 return players.map( p => {
-                    if (p.level == 3) {
+                    // Reserved spot
+                    if (p.level === 3) {
                         let participant = {
                             level: p.level,
-                            profilePic: 'http://localhost:8080/images/profile-blank_THUMB.jpg',
+                            profilePic: process.env.IMAGE_PATH + 'profile-blank_THUMB.jpg',
                             isMe: false,
                             player: true
                         };
@@ -869,7 +872,7 @@ const resolvers = {
                                         })
                                         .then(() => {
                                             pubsub.publish('NEW_PARTICIPANT', {
-                                                participantJoined: { level: 3, player: true, profilePic: 'http://localhost:8080/images/profile-blank_THUMB.jpg' }, gameId: args.id
+                                                participantJoined: { level: 3, player: true, profilePic: process.env.IMAGE_PATH + 'profile-blank_THUMB.jpg' }, gameId: args.id
                                             });
                                         }))
                                     }

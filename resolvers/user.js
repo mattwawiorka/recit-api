@@ -551,10 +551,10 @@ const resolvers = {
                     dob: args.userInput.dob || user.dob,
                     gender: args.userInput.gender || user.gender,
                     status: args.userInput.status || user.status,
-                    profilePic: args.userInput.profilePic || user.profilePic,
-                    pic1: args.userInput.pic1 || user.pic1,
-                    pic2: args.userInput.pic2 || user.pic2,
-                    pic3: args.userInput.pic3 || user.pic3
+                    profilePic: args.userInput.profilePic ? process.env.IMAGE_PATH + context.user + '/' + args.userInput.profilePic : user.profilePic,
+                    pic1: args.userInput.pic1 ? process.env.IMAGE_PATH + context.user + '/' + args.userInput.pic1 : user.pic1,
+                    pic2: args.userInput.pic2 ? process.env.IMAGE_PATH + context.user + '/' + args.userInput.pic2 : user.pic2,
+                    pic3: args.userInput.pic3 ? process.env.IMAGE_PATH + context.user + '/' + args.userInput.pic3 : user.pic3
                 })
             })
             .then( result => {
