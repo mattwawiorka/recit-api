@@ -5,8 +5,8 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon app.js",
-    "start": "NODE_ENV=production nodemon app.js"
+    "dev": "node app.js",
+    "start": "NODE_ENV=production node app.js"
   },
   "author": "Matt Wawiorka",
   "license": "ISC",
