@@ -5,8 +5,56 @@ const Game = require('../models/game');
 const jwt = require('jsonwebtoken');
 const fetch = require('node-fetch');
 const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+const sharp = require('sharp');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
 const debug = require('debug')('user');
+
+const saveImage = (url, userId) => {
+    let dir = path.join(__dirname, '../images/' + userId + '/');
+
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir);
+    } 
+
+    let timeStamp = '_' + Date.now() + '_';
+
+    let path = dir + 'facebook' + timeStamp + '.jpg';
+    const file = fs.createWriteStream(path);
+
+    https.get(url, response => {
+        response.pipe(file);
+
+        // Create thumbnail, small, medium, and large copies of profile pic
+        return sharp(path)
+        .resize(48, 48)
+        .toFile(dir + 'THUMB_facebook' + timeStamp + '.jpg')
+        .then(() => {
+            return sharp(req.file.path)
+            .resize(175, 175)
+            .toFile(dir + 'SMALL_facebook' + timeStamp + '.jpg')
+            .then(() => {
+                return sharp(req.file.path)
+                .resize(350, 350)
+                .toFile(dir + 'MEDIUM_facebook' + timeStamp + '.jpg')
+                .then(() => {
+                    return sharp(req.file.path)
+                    .resize(600, 600)
+                    .toFile(dir + 'LARGE_facebook' + timeStamp + '.jpg')
+                    .then(() => {
+                        fs.unlink(path, error => debug(error)); 
+                        return true;
+                    })
+                })
+            })
+        })
+        .catch( error => {
+            debug_images(error);
+        })
+    })
+}
 
 const resolvers = {
     Query: {
@@ -222,7 +270,15 @@ const resolvers = {
                                 error.code = 400;
                                 throw error; 
                             } else {
-                                return true;
+                                // Use Facebook graph API to get high quality verison of user's current profile pic
+                                return fetch(`https://graph.facebook.com/${process.env.FB_APPID}/picture?height=600&width=600&access_token=${facebookToken}`)
+                                .then(response => {
+                                    if (response.url) {
+                                        return saveImage(response.url, user.id);
+                                    } else {
+                                        return true;
+                                    }
+                                })
                             } 
                         })
                     } else {
@@ -282,72 +338,33 @@ const resolvers = {
                                         }
                                     }
 
-                                    // Use Facebook graph API to get high quality verison of user's current profile pic
-                                    return fetch(`https://graph.facebook.com/${process.env.FB_APPID}/picture?height=600&width=600&access_token=${facebookToken}`)
-                                    .then(response => {
-                                        if (response.url) {
-                                            return fetch(response.url)
-                                            .then(response => {
-                                                console.log(response)
-
-                                                if (map_result.results.length > 1) {
-                                                    return user.update({ 
-                                                        loginLocation: { type: 'Point', coordinates: loginLocation }, 
-                                                        city: map_result ? city : "Somewhere"
-                                                    })
-                                                    .then(() => {
-                                                        const token = jwt.sign(
-                                                            {
-                                                                userId: user.id.toString(),
-                                                                userName: user.name.toString(),
-                                                                userPic: user.profilePic.toString()
-                                                            }, 
-                                                            process.env.JWT_SECRET
-                                                        );
-                                                        return token;
-                                                    })
-                                                } else {
-                                                    const token = jwt.sign(
-                                                        {
-                                                            userId: user.id.toString(),
-                                                            userName: user.name.toString(),
-                                                            userPic: user.profilePic.toString()
-                                                        }, 
-                                                        process.env.JWT_SECRET
-                                                    );
-                                                    return token;
-                                                }
-                                            })
-                                        } else {
-                                            if (map_result.results.length > 1) {
-                                                return user.update({ 
-                                                    loginLocation: { type: 'Point', coordinates: loginLocation }, 
-                                                    city: map_result ? city : "Somewhere"
-                                                })
-                                                .then(() => {
-                                                    const token = jwt.sign(
-                                                        {
-                                                            userId: user.id.toString(),
-                                                            userName: user.name.toString(),
-                                                            userPic: user.profilePic.toString()
-                                                        }, 
-                                                        process.env.JWT_SECRET
-                                                    );
-                                                    return token;
-                                                })
-                                            } else {
-                                                const token = jwt.sign(
-                                                    {
-                                                        userId: user.id.toString(),
-                                                        userName: user.name.toString(),
-                                                        userPic: user.profilePic.toString()
-                                                    }, 
-                                                    process.env.JWT_SECRET
-                                                );
-                                                return token;
-                                            }
-                                        }
-                                    })
+                                    if (map_result.results.length > 1) {
+                                        return user.update({ 
+                                            loginLocation: { type: 'Point', coordinates: loginLocation }, 
+                                            city: map_result ? city : "Somewhere"
+                                        })
+                                        .then(() => {
+                                            const token = jwt.sign(
+                                                {
+                                                    userId: user.id.toString(),
+                                                    userName: user.name.toString(),
+                                                    userPic: user.profilePic.toString()
+                                                }, 
+                                                process.env.JWT_SECRET
+                                            );
+                                            return token;
+                                        })
+                                    } else {
+                                        const token = jwt.sign(
+                                            {
+                                                userId: user.id.toString(),
+                                                userName: user.name.toString(),
+                                                userPic: user.profilePic.toString()
+                                            }, 
+                                            process.env.JWT_SECRET
+                                        );
+                                        return token;
+                                    }                                  
                                 })
                             })
                         })
