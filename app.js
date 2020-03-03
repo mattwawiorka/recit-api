@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
-const http = require('http');
+const https = require('https');
 const cors = require('cors');
 const express = require('express');
 const compression = require('compression');
@@ -203,19 +203,14 @@ Message.belongsTo(User, { constraints: true });
 Message.belongsTo(Game, { constraints: true });
 Message.belongsTo(Conversation, { constraints: true, onUpdate: 'CASCADE' });
 
-// SSL
-// const httpsOptions = {
-//   key: fs.readFileSync('../key.pem'),
-//   cert: fs.readFileSync('../cert.pem'),
-//   passphrase: process.env.SSL_PASSPHRASE
-// }
+const httpsOptions = {
+  cert: fs.readFileSync(process.env.SSL_CERT),
+  key: fs.readFileSync(process.env.SSL_KEY)
+}
 
-// const server = https.createServer(httpsOptions, app);
-
-const server = http.createServer(app);
+const server = https.createServer(httpsOptions, app);
 
 sequelize
-// .sync({ force: true })
 .sync()
 .then( () => {
   server.listen(process.env.PORT, () => {
