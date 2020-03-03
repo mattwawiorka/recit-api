@@ -221,20 +221,9 @@ const resolvers = {
                                 const error = new Error('User already exists'); 
                                 error.code = 400;
                                 throw error; 
-                            }
-
-                            // Use Facebook API to get higher quality version of users profile pic
-                            return fetch(`https://graph.facebook.com/${process.env.FB_APPID}/picture?height=600&width=600&access_token=${facebookToken}`)
-                            .then(response => {
-                                if (response.url) {
-                                    return user.update({ profilePic: response.url })
-                                    .then(user => {
-                                        return true;
-                                    })
-                                } else {
-                                    return true;
-                                }
-                            })   
+                            } else {
+                                return true;
+                            } 
                         })
                     } else {
                         const error = new Error(response.data.error.message); 
@@ -252,14 +241,16 @@ const resolvers = {
         loginFb: (parent, args) => {
             const { facebookToken, facebookId, loginLocation } = args.userInput;
 
-            if (!loginLocation || loginLocation.lengt < 2) {
+            if (!loginLocation || loginLocation.length < 2) {
                 loginLocation = [47.621354, -122.333289];
             }
 
             return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${process.env.FB_APPID}|${process.env.FB_SECRET}`)
             .then(response => {
+                debug(response);
                 return response.json()
                 .then(response => {
+                    debug(response);
                     if (response.data.is_valid) {
                         return User.findOne({
                             where: {
@@ -271,67 +262,104 @@ const resolvers = {
                                 const error = new Error('Cannot find user');
                                 error.code = 401;
                                 throw error;
-                            }
+                            }  
 
                             // Use Google maps API to get city from browser location
                             return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${process.env.GOOGLE_KEY}`)
                             .then(response => {
                                 return response.json()
-                                .then(JSONresult => {
+                                .then(map_result => {
                                     let city;
-                                    for (let i = 0; i < JSONresult.results.length; i++) {
-                                        if (JSONresult.results[i].types.includes("locality")) {
-                                            city = JSONresult.results[i].formatted_address;
+                                    for (let i = 0; i < map_result.results.length; i++) {
+                                        if (map_result.results[i].types.includes("locality")) {
+                                            city = map_result.results[i].formatted_address;
                                             break;
-                                        } else if (JSONresult.results[i].types.includes("country")) {
-                                            city = JSONresult.results[i].formatted_address;
+                                        } else if (map_result.results[i].types.includes("country")) {
+                                            city = map_result.results[i].formatted_address;
                                             break; 
                                         } else {
                                             city = "Somewhere"
                                         }
                                     }
 
-                                    if (JSONresult.results.length > 1) {
-                                        return user.update({ 
-                                            loginLocation: { type: 'Point', coordinates: loginLocation }, 
-                                            city: JSONresult ? city : "Somewhere"
-                                        })
-                                        .then(() => {
-                                            const token = jwt.sign(
-                                                {
-                                                    userId: user.id.toString(),
-                                                    userName: user.name.toString(),
-                                                    userPic: user.profilePic.toString()
-                                                }, 
-                                                'secret', 
-                                                // { expiresIn: '24h' }
-                                            );
-                                            return token;
-                                        })
-                                    } else {
-                                        const token = jwt.sign(
-                                            {
-                                                userId: user.id.toString(),
-                                                userName: user.name.toString(),
-                                                userPic: user.profilePic.toString()
-                                            }, 
-                                            'secret', 
-                                            // { expiresIn: '24h' }
-                                        );
-                                        return token;
-                                    }
+                                    // Use Facebook graph API to get high quality verison of user's current profile pic
+                                    return fetch(`https://graph.facebook.com/${process.env.FB_APPID}/picture?height=600&width=600&access_token=${facebookToken}`)
+                                    .then(response => {
+                                        if (response.url) {
+                                            return fetch(response.url)
+                                            .then(response => {
+                                                console.log(response)
+
+                                                if (map_result.results.length > 1) {
+                                                    return user.update({ 
+                                                        loginLocation: { type: 'Point', coordinates: loginLocation }, 
+                                                        city: map_result ? city : "Somewhere"
+                                                    })
+                                                    .then(() => {
+                                                        const token = jwt.sign(
+                                                            {
+                                                                userId: user.id.toString(),
+                                                                userName: user.name.toString(),
+                                                                userPic: user.profilePic.toString()
+                                                            }, 
+                                                            process.env.JWT_SECRET
+                                                        );
+                                                        return token;
+                                                    })
+                                                } else {
+                                                    const token = jwt.sign(
+                                                        {
+                                                            userId: user.id.toString(),
+                                                            userName: user.name.toString(),
+                                                            userPic: user.profilePic.toString()
+                                                        }, 
+                                                        process.env.JWT_SECRET
+                                                    );
+                                                    return token;
+                                                }
+                                            })
+                                        } else {
+                                            if (map_result.results.length > 1) {
+                                                return user.update({ 
+                                                    loginLocation: { type: 'Point', coordinates: loginLocation }, 
+                                                    city: map_result ? city : "Somewhere"
+                                                })
+                                                .then(() => {
+                                                    const token = jwt.sign(
+                                                        {
+                                                            userId: user.id.toString(),
+                                                            userName: user.name.toString(),
+                                                            userPic: user.profilePic.toString()
+                                                        }, 
+                                                        process.env.JWT_SECRET
+                                                    );
+                                                    return token;
+                                                })
+                                            } else {
+                                                const token = jwt.sign(
+                                                    {
+                                                        userId: user.id.toString(),
+                                                        userName: user.name.toString(),
+                                                        userPic: user.profilePic.toString()
+                                                    }, 
+                                                    process.env.JWT_SECRET
+                                                );
+                                                return token;
+                                            }
+                                        }
+                                    })
                                 })
                             })
                         })
                     } else {
                         const error = new Error(response.data.error.message); 
-                        error.code = response.data.error.cdoe
+                        error.code = response.data.error.code;
                         throw error;  
                     }    
                 })    
             }).catch(error => {
                 debug(error);
-                throw error
+                throw error;
             });
         },
         // Create the user record to be verified with the SMS code provided at signup
@@ -459,24 +487,24 @@ const resolvers = {
                     return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${process.env.GOOGLE_KEY}`)
                     .then(response => {
                         return response.json()
-                        .then(JSONresult => {
+                        .then(map_result => {
                             let city;
-                            for (let i = 0; i < JSONresult.results.length; i++) {
-                                if (JSONresult.results[i].types.includes("locality")) {
-                                    city = JSONresult.results[i].formatted_address;
+                            for (let i = 0; i < map_result.results.length; i++) {
+                                if (map_result.results[i].types.includes("locality")) {
+                                    city = map_result.results[i].formatted_address;
                                     break;
-                                } else if (JSONresult.results[i].types.includes("country")) {
-                                    city = JSONresult.results[i].formatted_address;
+                                } else if (map_result.results[i].types.includes("country")) {
+                                    city = map_result.results[i].formatted_address;
                                     break;
                                 } else {
                                     city = "Somewhere"
                                 }
                             }
 
-                            if (JSONresult.results.length > 1) {
+                            if (map_result.results.length > 1) {
                                 return user.update({ 
                                     loginLocation: { type: 'Point', coordinates: loginLocation }, 
-                                    city: JSONresult ? city : "Somewhere",
+                                    city: map_result ? city : "Somewhere",
                                     name: name || user.name,
                                     dob: dob || user.dob,
                                     gender: gender || user.gender,
@@ -489,7 +517,7 @@ const resolvers = {
                                             userName: user.name.toString(),
                                             userPic: user.profilePic.toString()
                                         }, 
-                                        'secret', 
+                                        process.env.JWT_SECRET, 
                                         // { expiresIn: '24h' }
                                     );
                                     return token;
@@ -508,7 +536,7 @@ const resolvers = {
                                             userName: user.name.toString(),
                                             userPic: user.profilePic.toString()
                                         }, 
-                                        'secret', 
+                                        process.env.JWT_SECRET, 
                                         // { expiresIn: '24h' }
                                     );
                                     return token;
@@ -629,8 +657,7 @@ const resolvers = {
                         userName: user.name.toString(),
                         userPic: user.profilePic.toString()
                     }, 
-                    'secret', 
-                    // { expiresIn: '24h' }
+                    process.env.JWT_SECRET
                 );
                 return token;
             })
