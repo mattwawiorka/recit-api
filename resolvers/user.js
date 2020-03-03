@@ -19,39 +19,36 @@ const saveImage = (url, userId) => {
         fs.mkdirSync(dir);
     } 
 
-    let timeStamp = '_' + Date.now() + '_';
-
-    let localPath = dir + 'facebook' + timeStamp + '.jpg';
+    let localPath = dir + 'facebook.jpg';
     const file = fs.createWriteStream(localPath);
 
     https.get(url, response => {
         response.pipe(file);
 
         // Create thumbnail, small, medium, and large copies of profile pic
-        return sharp(localPath)
+        sharp(localPath)
         .resize(48, 48)
-        .toFile(dir + 'THUMB_facebook' + timeStamp + '.jpg')
+        .toFile(dir + 'THUMB_facebook.jpg')
         .then(() => {
-            return sharp(localPath)
+            sharp(localPath)
             .resize(175, 175)
-            .toFile(dir + 'SMALL_facebook' + timeStamp + '.jpg')
+            .toFile(dir + 'SMALL_facebook.jpg')
             .then(() => {
-                return sharp(localPath)
+                sharp(localPath)
                 .resize(350, 350)
-                .toFile(dir + 'MEDIUM_facebook' + timeStamp + '.jpg')
+                .toFile(dir + 'MEDIUM_facebook.jpg')
                 .then(() => {
-                    return sharp(localPath)
+                    sharp(localPath)
                     .resize(600, 600)
-                    .toFile(dir + 'LARGE_facebook' + timeStamp + '.jpg')
+                    .toFile(dir + 'LARGE_facebook.jpg')
                     .then(() => {
                         fs.unlink(localPath, error => debug(error)); 
-                        return true;
                     })
                 })
             })
         })
         .catch( error => {
-            debug_images(error);
+            debug(error);
         })
     })
 }
@@ -274,7 +271,11 @@ const resolvers = {
                                 return fetch(`https://graph.facebook.com/${process.env.FB_APPID}/picture?height=600&width=600&access_token=${facebookToken}`)
                                 .then(response => {
                                     if (response.url) {
-                                        return saveImage(response.url, user.id);
+                                        saveImage(response.url, user.id);
+                                        return user.update({ profilePic: 'facebook' })
+                                        .then(() => {
+                                            return true;
+                                        })
                                     } else {
                                         return true;
                                     }
