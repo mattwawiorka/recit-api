@@ -21,30 +21,30 @@ const saveImage = (url, userId) => {
 
     let timeStamp = '_' + Date.now() + '_';
 
-    let path = dir + 'facebook' + timeStamp + '.jpg';
-    const file = fs.createWriteStream(path);
+    let localPath = dir + 'facebook' + timeStamp + '.jpg';
+    const file = fs.createWriteStream(localPath);
 
     https.get(url, response => {
         response.pipe(file);
 
         // Create thumbnail, small, medium, and large copies of profile pic
-        return sharp(path)
+        return sharp(localPath)
         .resize(48, 48)
         .toFile(dir + 'THUMB_facebook' + timeStamp + '.jpg')
         .then(() => {
-            return sharp(req.file.path)
+            return sharp(localPath)
             .resize(175, 175)
             .toFile(dir + 'SMALL_facebook' + timeStamp + '.jpg')
             .then(() => {
-                return sharp(req.file.path)
+                return sharp(localPath)
                 .resize(350, 350)
                 .toFile(dir + 'MEDIUM_facebook' + timeStamp + '.jpg')
                 .then(() => {
-                    return sharp(req.file.path)
+                    return sharp(localPath)
                     .resize(600, 600)
                     .toFile(dir + 'LARGE_facebook' + timeStamp + '.jpg')
                     .then(() => {
-                        fs.unlink(path, error => debug(error)); 
+                        fs.unlink(localPath, error => debug(error)); 
                         return true;
                     })
                 })
