@@ -275,7 +275,7 @@ const resolvers = {
                                 .then(response => {
                                     if (response.url) {
                                         saveImage(response.url, user.id);
-                                        return user.update({ profilePic: process.env.IMAGE_PATH + context.user + '/facebook.jpg' })
+                                        return user.update({ profilePic: process.env.IMAGE_PATH + user.id + '/facebook.jpg' })
                                         .then(() => {
                                             return true;
                                         })
