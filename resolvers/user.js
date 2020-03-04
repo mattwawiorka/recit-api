@@ -239,7 +239,7 @@ const resolvers = {
     },
     Mutation: {
         // Create user from Facebook
-        createUserFb: (parent, args) => {
+        createUserFb: (parent, args, context) => {
             const { name, dob, gender, facebookId, facebookToken } = args.userInput;
 
             const jerseyNumber = Math.floor(10 + Math.random() * 90);
@@ -297,7 +297,7 @@ const resolvers = {
             })
         },
         // Login with Facebook
-        loginFb: (parent, args) => {
+        loginFb: (parent, args, context) => {
             const { facebookToken, facebookId, loginLocation } = args.userInput;
 
             if (!loginLocation || loginLocation.length < 2) {
@@ -610,7 +610,7 @@ const resolvers = {
                 debug(error);
             });
         },
-        deleteUser: (parent, args) => {
+        deleteUser: (parent, args, context) => {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
                 throw error;
@@ -636,7 +636,7 @@ const resolvers = {
         *   ADMIN TEST FUNCTIONS  *
         ***************************/
         createTestUser: (parent, args, context) => {
-            if (context.user != 1) {
+            if (context.user !== 1) {
                 const error = new Error('Unauthorized user');
                 error.code = 401;
                 throw error;
@@ -657,7 +657,7 @@ const resolvers = {
             })
         },
         loginTestUser: (parent, args, context) => {
-            if (context.user != 1) {
+            if (context.user !== 1) {
                 const error = new Error('Unauthorized user');
                 error.code = 401;
                 throw error;
