@@ -12,7 +12,7 @@ const path = require('path');
 
 const debug = require('debug')('user');
 
-const saveImage = (url, userId) => {
+const saveImage = (url, userId, timestamp) => {
     let dir = path.join(__dirname, '../images/' + userId + '/');
 
     if (!fs.existsSync(dir)) {
@@ -29,19 +29,19 @@ const saveImage = (url, userId) => {
             // Create thumbnail, small, medium, and large copies of profile pic
             sharp(localPath)
             .resize(48, 48)
-            .toFile(dir + 'facebook_THUMB.jpg')
+            .toFile(dir + 'facebook_' + timestamp + '_THUMB.jpg')
             .then(() => {
                 sharp(localPath)
                 .resize(175, 175)
-                .toFile(dir + 'facebook_SMALL.jpg')
+                .toFile(dir + 'facebook_' + timestamp + '_SMALL.jpg')
                 .then(() => {
                     sharp(localPath)
                     .resize(350, 350)
-                    .toFile(dir + 'facebook_MEDIUM.jpg')
+                    .toFile(dir + 'facebook_' + timestamp + '_MEDIUM.jpg')
                     .then(() => {
                         sharp(localPath)
                         .resize(600, 600)
-                        .toFile(dir + 'facebook_LARGE.jpg')
+                        .toFile(dir + 'facebook_' + timestamp + '_LARGE.jpg')
                         .then(() => {
                             fs.unlink(localPath, error => debug(error)); 
                         })
@@ -60,7 +60,7 @@ const resolvers = {
         // ADMIN view full users list
         users: (parent, args, context) => {
             // Only admin user (mjw) can view full users list
-            if (context.user !== 1) {
+            if (context.user != 1) {
                 const error = new Error('Unauthorized user');
                 error.code = 401;
                 throw error;
@@ -274,8 +274,9 @@ const resolvers = {
                                 return fetch(`https://graph.facebook.com/v6.0/${facebookId}/picture?height=600&width=600&access_token=${facebookToken}`)
                                 .then(response => {
                                     if (response.url) {
-                                        saveImage(response.url, user.id);
-                                        return user.update({ profilePic: process.env.IMAGE_PATH + user.id + '/facebook.jpg' })
+                                        let timestamp = Date.now();
+                                        saveImage(response.url, user.id, timestamp);
+                                        return user.update({ profilePic: process.env.IMAGE_PATH + user.id + '/facebook_' + timestamp + '.jpg' })
                                         .then(() => {
                                             return true;
                                         })
