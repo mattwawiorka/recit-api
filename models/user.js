@@ -49,19 +49,15 @@ const User = sequelize.define('user',
     },
     profilePic: {
       type: Sequelize.STRING,
-      defaultValue: process.env.IMAGE_PATH + 'profile-blank.jpg'
     },
     pic1: {
       type: Sequelize.STRING,
-      defaultValue: process.env.IMAGE_PATH + 'profile-blank.jpg'
     },
     pic2: {
       type: Sequelize.STRING,
-      defaultValue: process.env.IMAGE_PATH + 'profile-blank.jpg'
     },
     pic3: {
       type: Sequelize.STRING,
-      defaultValue: process.env.IMAGE_PATH + 'profile-blank.jpg'
     },
     loginLocation: {
       type: Sequelize.GEOMETRY('POINT', 4326),
