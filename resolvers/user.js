@@ -60,7 +60,7 @@ const resolvers = {
         // ADMIN view full users list
         users: (parent, args, context) => {
             // Only admin user (mjw) can view full users list
-            if (context.user != 1) {
+            if (context.user !== 1) {
                 const error = new Error('Unauthorized user');
                 error.code = 401;
                 throw error;
@@ -324,8 +324,10 @@ const resolvers = {
                             // Use Google maps API to get city from browser location
                             return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${process.env.GOOGLE_KEY}`)
                             .then(response => {
+                                debug(response)
                                 return response.json()
                                 .then(map_result => {
+                                    debug(map_result)
                                     let city;
                                     for (let i = 0; i < map_result.results.length; i++) {
                                         if (map_result.results[i].types.includes("locality")) {
@@ -499,7 +501,6 @@ const resolvers = {
                 }
             })
             .then( user => {
-                // Phonenumber 
                 if (user) {
                     // Use Google maps API to get city from browser location
                     return fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${loginLocation[0]},${loginLocation[1]}&key=${process.env.GOOGLE_KEY}`)
