@@ -77,7 +77,7 @@ const resolvers = {
         // Get currently logged in user
         whoAmI: (parent, args, context) => {
             if (!context.isAuth) {
-                return { id: null }
+                return { id: 0 }
             }
 
             return User.findOne({
@@ -121,8 +121,9 @@ const resolvers = {
         findUser: (parent, args, context) => {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
+                error.code = 401;
                 throw error;
-            }         
+            }        
 
             // 10 Users returned at a time
             let limit = 10;
@@ -575,7 +576,7 @@ const resolvers = {
             })
         },
         updateUser: (parent, args, context) => {
-            if (!context.isAuth || args.userId != context.user) {
+            if (!context.isAuth || args.userId !== context.user) {
                 const error = new Error('Unauthorized user');
                 error.code = 401;
                 throw error;
@@ -614,6 +615,7 @@ const resolvers = {
         deleteUser: (parent, args, context) => {
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
+                error.code = 401;
                 throw error;
             }
 

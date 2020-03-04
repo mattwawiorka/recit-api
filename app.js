@@ -211,7 +211,7 @@ const httpsOptions = {
 const server = https.createServer(httpsOptions, app);
 
 sequelize
-.sync({ force: true })
+.sync()
 .then( () => {
   server.listen(process.env.PORT, () => {
     console.log('Server listening on port ' + process.env.PORT)

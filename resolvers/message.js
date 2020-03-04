@@ -58,9 +58,10 @@ const resolvers = {
     Query: {
         // Given a conversation get its messages, no notifications
         messages: (parent, args, context) => {
-
+            // Don't allow users to view messages if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to view messages');
+                error.code = 401;
                 throw error;
             }
 
@@ -129,8 +130,10 @@ const resolvers = {
         },
         // Get the most recent, pertinent message for each of a users conversations they are participated in
         inbox: (parent, args, context) => {
+            // Don't allow users to view messages if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to view messages');
+                error.code = 401;
                 throw error;
             }
 
@@ -249,6 +252,13 @@ const resolvers = {
             });
         },
         notifications: (parent, args, context) => {
+            // Notifications only apply to logged in users
+            if (!context.isAuth) {
+                const error = new Error('Must be logged in to receive notifications');
+                error.code = 401;
+                throw error;
+            }
+
             return Participant.count({
                 where: {
                     userId: context.user,
@@ -259,8 +269,10 @@ const resolvers = {
     },
     Mutation: {
         createMessage: (parent, args, context) => {
+            // Don't allow users to send messages if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to send messages');
+                error.code = 401;
                 throw error;
             }
 
@@ -305,9 +317,10 @@ const resolvers = {
             })
         },
         updateMessage: (parent, args, context) => {
-
+            // Don't allow users to update messages if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to update messages');
+                error.code = 401;
                 throw error;
             }
 
@@ -343,9 +356,10 @@ const resolvers = {
             });
         },
         deleteMessage: (parent, args, context) => {
-
+            // Don't allow users to delete messages if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to delete messages');
+                error.code = 401;
                 throw error;
             }
 
@@ -384,9 +398,10 @@ const resolvers = {
         },
         // Invite user to a game
         addToConversation: (parent, args, context) => {
-
+            // Don't allow users to invite users if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to send invites');
+                error.code = 401;
                 throw error;
             }
 

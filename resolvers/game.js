@@ -210,7 +210,6 @@ const resolvers = {
         // Get game info for game page
         game: (parent, args, context) => {
             // Don't allow users to view games if they are not logged in
-            // For now - may come up with a different solution later
             if (!context.isAuth) {
                 const error = new Error('Unauthorized user');
                 error.code = 401;
@@ -264,6 +263,13 @@ const resolvers = {
         },
         // Get host for a game
         host: (parent, args, context) => {
+            // Don't allow users to view games if they are not logged in
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                error.code = 401;
+                throw error;
+            }
+
             return Player.findOne({
                 raw: true,
                 where: {
@@ -349,6 +355,13 @@ const resolvers = {
         },
         // Get users interested and invited to a game
         watchers: (parent, args, context) => {
+            // Don't allow users to view games if they are not logged in
+            if (!context.isAuth) {
+                const error = new Error('Unauthorized user');
+                error.code = 401;
+                throw error;
+            }
+
             return Participant.findAll({
                 where: {
                     conversationId: args.conversationId,
@@ -467,6 +480,13 @@ const resolvers = {
     },
     Mutation: {
         createGame: (parent, args, context) => {
+            // Don't allow users to create games if they are not logged in
+            if (!context.isAuth) {
+                const error = new Error('Must be logged in to create game');
+                error.code = 401;
+                throw error;
+            }
+
             let { title, dateTime, endDateTime, venue, address, coords, category, sport, spots, spotsReserved, description, public } = args.gameInput;
             let image;
             const errors = [];
@@ -479,13 +499,7 @@ const resolvers = {
             }
             const endD = new Date(endDateTime);
 
-            if (!context.isAuth) {
-                const error = new Error('Must be logged in to create game');
-                error.code = 401;   
-                throw error;
-            }
-
-            if (!title || !dateTime || !sport || !category || !description || !spots || (public == null)) {
+            if (!title || !dateTime || !sport || !category || !description || !spots || (public === null)) {
                 const error = new Error('Please fill in all fields');
                 error.code = 401;   
                 throw error;
@@ -498,7 +512,7 @@ const resolvers = {
                 });
             }
 
-            if (category != "SPORT" && category != "BOARD" && category != "CARD" && category != "VIDEO") {
+            if (category !== "SPORT" && category !== "BOARD" && category !== "CARD" && category !== "VIDEO") {
                 errors.push({ 
                     message: 'Please select a valid category',
                     field: 'category' 
@@ -667,6 +681,13 @@ const resolvers = {
             });
         },
         updateGame: (parent, args, context) => {
+            // Don't allow users to update games if they are not logged in
+            if (!context.isAuth) {
+                const error = new Error('Must be logged in to update game');
+                error.code = 401;
+                throw error;
+            }
+
             let { title, dateTime, endDateTime, venue, address, coords, category, sport, spots, spotsReserved, description, public } = args.gameInput;
             let image;
             const errors = [];
@@ -675,19 +696,13 @@ const resolvers = {
             const d = new Date(dateTime);
             const endD = new Date(endDateTime);
 
-            if (!context.isAuth) {
-                const error = new Error('Must be logged in to create game');
-                error.code = 401;   
-                throw error;
-            }
-
-            if (!title || !dateTime || !sport || !category || !description || !spots || (public == null)) {
+            if (!title || !dateTime || !sport || !category || !description || !spots || (public === null)) {
                 const error = new Error('Please fill in all fields');
                 error.code = 401;   
                 throw error;
             }
 
-            if (category != "SPORT" && category != "BOARD" && category != "CARD" && category != "VIDEO") {
+            if (category !== "SPORT" && category !== "BOARD" && category !== "CARD" && category !== "VIDEO") {
                 errors.push({ 
                     message: 'Please select a valid category',
                     field: 'category' 
@@ -731,7 +746,7 @@ const resolvers = {
             }
 
             if (errors.length > 0) {
-                const error = new Error('Could not create game');
+                const error = new Error('Could not update game');
                 error.data = errors;
                 error.code = 401;   
                 throw error;
@@ -918,8 +933,10 @@ const resolvers = {
             });          
         },
         deleteGame: (parent, args, context) => {
+            // Don't allow users to delete games if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to cancel game');
+                error.code = 401;
                 throw error;
             }
 
@@ -944,6 +961,7 @@ const resolvers = {
                 .then(host => {
                     if (host.userId != context.user) {
                         const error = new Error('Only host can cancel game');
+                        error.code = 401;
                         throw error;
                     } 
                     else {
@@ -981,8 +999,10 @@ const resolvers = {
             });
         },
         joinGame: (parent, args, context) => {
+            // Don't allow users to join games if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to join game');
+                error.code = 401;
                 throw error;
             }
 
@@ -1274,8 +1294,10 @@ const resolvers = {
         },
         // Subscribing to a game adds yourself to the game conversation without committing to being a player
         subscribe: (parent, args, context, req) => {
+            // Don't allow users to subscribe to games if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to subscribe to game');
+                error.code = 401;
                 throw error;
             }
 
@@ -1398,8 +1420,10 @@ const resolvers = {
             });
         },
         unsubscribe: (parent, args, context, req) => {
+            // Don't allow users to unsubscribe games if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to unsubscribe game');
+                error.code = 401;
                 throw error;
             }
 
@@ -1472,13 +1496,12 @@ const resolvers = {
             })
         },
         leaveGame: (parent, args, context, req) => {
-            const errors = [];
-
+            // Don't allow users to leave games if they are not logged in
             if (!context.isAuth) {
-                const error = new Error('Unauthorized user');
+                const error = new Error('Must be logged in to leave game');
+                error.code = 401;
                 throw error;
             }
-
             return Player.findOne({
                 where: {
                     userId: context.user,

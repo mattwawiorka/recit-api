@@ -27,7 +27,7 @@ const Conversation = sequelize.define('conversation',
         .then( result => {
           result.map( p => {
             p.changed('updatedAt', true);
-            p.update({ updatedAt: Date.now(), hasUpdate: (c.updatedBy != p.userId) });
+            p.update({ updatedAt: Date.now(), hasUpdate: (c.updatedBy !== p.userId) });
           })
         })
       }
