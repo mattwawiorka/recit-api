@@ -25,30 +25,32 @@ const saveImage = (url, userId) => {
     https.get(url, response => {
         response.pipe(file);
 
-        // Create thumbnail, small, medium, and large copies of profile pic
-        sharp(localPath)
-        .resize(48, 48)
-        .toFile(dir + 'THUMB_facebook.jpg')
-        .then(() => {
+        response.on('end', () => {
+            // Create thumbnail, small, medium, and large copies of profile pic
             sharp(localPath)
-            .resize(175, 175)
-            .toFile(dir + 'SMALL_facebook.jpg')
+            .resize(48, 48)
+            .toFile(dir + 'facebook_THUMB.jpg')
             .then(() => {
                 sharp(localPath)
-                .resize(350, 350)
-                .toFile(dir + 'MEDIUM_facebook.jpg')
+                .resize(175, 175)
+                .toFile(dir + 'facebook_SMALL.jpg')
                 .then(() => {
                     sharp(localPath)
-                    .resize(600, 600)
-                    .toFile(dir + 'LARGE_facebook.jpg')
+                    .resize(350, 350)
+                    .toFile(dir + 'facebook_MEDIUM.jpg')
                     .then(() => {
-                        fs.unlink(localPath, error => debug(error)); 
+                        sharp(localPath)
+                        .resize(600, 600)
+                        .toFile(dir + 'facebook_LARGE.jpg')
+                        .then(() => {
+                            fs.unlink(localPath, error => debug(error)); 
+                        })
                     })
                 })
             })
-        })
-        .catch( error => {
-            debug(error);
+            .catch( error => {
+                debug(error);
+            })
         })
     })
 }
@@ -268,14 +270,18 @@ const resolvers = {
                                 throw error; 
                             } else {
                                 // Use Facebook graph API to get high quality verison of user's current profile pic
-                                return fetch(`https://graph.facebook.com/${process.env.FB_APPID}/picture?height=600&width=600&access_token=${facebookToken}`)
+                                return fetch(`https://graph.facebook.com/v6.0/${facebookId}/picture?height=600&width=600&access_token=${facebookToken}`)
                                 .then(response => {
                                     if (response.url) {
-                                        saveImage(response.url, user.id);
-                                        return user.update({ profilePic: 'facebook' })
-                                        .then(() => {
-                                            return true;
-                                        })
+                                        // return new Promise((resolve, reject) => {
+                                            saveImage(response.url, user.id);
+                                        // })
+                                        // .then(() => {
+                                            return user.update({ profilePic: 'facebook' })
+                                            .then(() => {
+                                                return true;
+                                            })
+                                        // })
                                     } else {
                                         return true;
                                     }
@@ -304,10 +310,8 @@ const resolvers = {
 
             return fetch(`https://graph.facebook.com/debug_token?input_token=${facebookToken}&access_token=${process.env.FB_APPID}|${process.env.FB_SECRET}`)
             .then(response => {
-                debug(response);
                 return response.json()
                 .then(response => {
-                    debug(response);
                     if (response.data.is_valid) {
                         return User.findOne({
                             where: {
