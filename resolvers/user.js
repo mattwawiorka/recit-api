@@ -57,7 +57,9 @@ const saveImage = (url, userId, timestamp) => {
 
 const resolvers = {
     Query: {
-        // ADMIN view full users list
+        /************************** 
+        *     ADMIN FUNCTION      *
+        ***************************/
         users: (parent, args, context) => {
             // Only admin user (mjw) can view full users list
             if (context.user != 1) {
@@ -66,7 +68,16 @@ const resolvers = {
                 throw error;
             }
 
-            return User.findAll()
+            let cursor = args.cursor ? args.cursor : 0;
+
+            return User.findAll({
+                where: {
+                    id: {
+                        [Op.gt]: cursor
+                    }
+                },
+                limit: 15
+            })
             .then( users => {
                 return users;
             }).catch(error => {

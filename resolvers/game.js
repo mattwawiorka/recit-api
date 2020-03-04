@@ -90,6 +90,34 @@ const resolvers = {
         }
     },
     Query: {
+        /************************** 
+        *     ADMIN FUNCTIONS     *
+        ***************************/
+        gamesAdmin: (parent, args, context) => {
+            // Only admin user (mjw) can view full games list
+            if (context.user != 1) {
+                const error = new Error('Unauthorized user');
+                error.code = 401;
+                throw error;
+            }
+
+            let cursor = args.cursor ? args.cursor : 0;
+
+            return Game.findAll({
+                where: {
+                    id: {
+                        [Op.gt]: cursor
+                    }
+                },
+                limit: 15
+            })
+            .then( games => {
+                return games;
+            }).catch(error => {
+                debug(error);
+                throw error;
+            });
+        },
         // Get public games feed for your area 
         // Need SQL group by mode = '' for this query to work!
         games: (parent, args, context) => {
