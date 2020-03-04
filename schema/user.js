@@ -50,7 +50,7 @@ const typeDef = `
     }
 
     type Query {
-        users(cursor: int): [User!]!
+        users(cursor: Int): [User!]!
         user(userId: ID!): UserEdge!
         findUser(name: String!, location: [Float], cursor: String): UserFeed
         whoAmI: User

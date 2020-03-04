@@ -73,7 +73,7 @@ const typeDef = `
     }
 
     type Query {
-        gamesAdmin(cursor: int): [game]
+        gamesAdmin(cursor: Int): [Game]
         games(cursor: String, category: String, sport: String, startDate: String, openSpots: String, bounds: [Float]): GameFeed
         game(id: ID!): Game!
         players(gameId: ID!): [Participant]
