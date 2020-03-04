@@ -273,15 +273,11 @@ const resolvers = {
                                 return fetch(`https://graph.facebook.com/v6.0/${facebookId}/picture?height=600&width=600&access_token=${facebookToken}`)
                                 .then(response => {
                                     if (response.url) {
-                                        // return new Promise((resolve, reject) => {
-                                            saveImage(response.url, user.id);
-                                        // })
-                                        // .then(() => {
-                                            return user.update({ profilePic: 'facebook' })
-                                            .then(() => {
-                                                return true;
-                                            })
-                                        // })
+                                        saveImage(response.url, user.id);
+                                        return user.update({ profilePic: process.env.IMAGE_PATH + context.user + '/facebook.jpg' })
+                                        .then(() => {
+                                            return true;
+                                        })
                                     } else {
                                         return true;
                                     }
