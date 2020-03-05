@@ -70,7 +70,7 @@ const resolvers = {
                 () => pubsub.asyncIterator('NOTIFICATION'),
                 (payload, variables) => {
                     // Don't send notifications for your own actions
-                    if (payload.currentUser === variables.userId) return false;
+                    if (payload.currentUser == variables.userId) return false;
                     // Send notification if there was an update to a conversation a user is participating in
                     return Participant.findOne({
                         raw: true,
