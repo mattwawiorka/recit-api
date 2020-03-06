@@ -364,7 +364,6 @@ const resolvers = {
                                                 {
                                                     userId: user.id.toString(),
                                                     userName: user.name.toString(),
-                                                    userPic: user.profilePic.toString()
                                                 }, 
                                                 process.env.JWT_SECRET
                                             );
@@ -375,7 +374,6 @@ const resolvers = {
                                             {
                                                 userId: user.id.toString(),
                                                 userName: user.name.toString(),
-                                                userPic: user.profilePic.toString()
                                             }, 
                                             process.env.JWT_SECRET
                                         );
@@ -546,8 +544,7 @@ const resolvers = {
                                     const token = jwt.sign(
                                         {
                                             userId: user.id.toString(),
-                                            userName: user.name.toString(),
-                                            userPic: user.profilePic.toString()
+                                            userName: user.name.toString()
                                         }, 
                                         process.env.JWT_SECRET, 
                                         // { expiresIn: '24h' }
@@ -565,8 +562,7 @@ const resolvers = {
                                     const token = jwt.sign(
                                         {
                                             userId: user.id.toString(),
-                                            userName: user.name.toString(),
-                                            userPic: user.profilePic.toString()
+                                            userName: user.name.toString()
                                         }, 
                                         process.env.JWT_SECRET, 
                                         // { expiresIn: '24h' }
@@ -688,7 +684,6 @@ const resolvers = {
                     {
                         userId: user.id.toString(),
                         userName: user.name.toString(),
-                        userPic: user.profilePic.toString()
                     }, 
                     process.env.JWT_SECRET
                 );
