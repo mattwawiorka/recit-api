@@ -100,18 +100,22 @@ app.post('/post-image', (req, res) => {
     // Create thumbnail, small, medium, and large copies of profile pic
     return sharp(req.file.path)
     .resize(48, 48)
+    .withMetadata()
     .toFile(req.file.path.split('.')[0] + '_THUMB.' + req.file.path.split('.')[1])
     .then(() => {
       return sharp(req.file.path)
       .resize(175, 175)
+      .withMetadata()
       .toFile(req.file.path.split('.')[0] + '_SMALL.' + req.file.path.split('.')[1])
       .then(() => {
         return sharp(req.file.path)
         .resize(350, 350)
+        .withMetadata()
         .toFile(req.file.path.split('.')[0] + '_MEDIUM.' + req.file.path.split('.')[1])
         .then(() => {
           return sharp(req.file.path)
           .resize(600, 600)
+          .withMetadata()
           .toFile(req.file.path.split('.')[0] + '_LARGE.' + req.file.path.split('.')[1])
           .then(() => {
             fs.unlink(req.file.path, error => debug_images(error)); 
@@ -150,10 +154,12 @@ app.post('/post-images', (req, res) => {
       // Create just small and large copies of all other pics
       return sharp(image.path)
       .resize(175, 175)
+      .withMetadata()
       .toFile(image.path.split('.')[0] + '_SMALL.' + image.path.split('.')[1])
       .then(() => {
         return sharp(image.path)
         .resize(600, 600)
+        .withMetadata()
         .toFile(image.path.split('.')[0] + '_LARGE.' + image.path.split('.')[1])
         .then(() => {
           fs.unlink(image.path, error => debug_images(error)); 

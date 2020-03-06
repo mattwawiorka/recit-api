@@ -29,18 +29,22 @@ const saveImage = (url, userId, timestamp) => {
             // Create thumbnail, small, medium, and large copies of profile pic
             sharp(localPath)
             .resize(48, 48)
+            .withMetadata()
             .toFile(dir + 'facebook_' + timestamp + '_THUMB.jpg')
             .then(() => {
                 sharp(localPath)
                 .resize(175, 175)
+                .withMetadata()
                 .toFile(dir + 'facebook_' + timestamp + '_SMALL.jpg')
                 .then(() => {
                     sharp(localPath)
                     .resize(350, 350)
+                    .withMetadata()
                     .toFile(dir + 'facebook_' + timestamp + '_MEDIUM.jpg')
                     .then(() => {
                         sharp(localPath)
                         .resize(600, 600)
+                        .withMetadata()
                         .toFile(dir + 'facebook_' + timestamp + '_LARGE.jpg')
                         .then(() => {
                             fs.unlink(localPath, error => debug(error)); 
