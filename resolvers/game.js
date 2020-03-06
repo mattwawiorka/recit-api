@@ -784,7 +784,7 @@ const resolvers = {
                 image = "/" + sport + ".png";
             }  
             else if (category === "SPORT") {
-                image = "/RECIT.png"
+                image = "/REC-BOARD.png"
             }
             else if (category === "BOARD") {
                 image = "/BOARD.png";

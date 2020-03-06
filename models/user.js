@@ -44,7 +44,7 @@ const User = sequelize.define('user',
       type: Sequelize.STRING
     },
     status: {
-      type: Sequelize.STRING,
+      type: Sequelize.STRING(1000),
       defaultValue: "Let's Play!"
     },
     profilePic: {
