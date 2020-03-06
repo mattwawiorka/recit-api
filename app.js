@@ -101,22 +101,22 @@ app.post('/post-image', (req, res) => {
     return sharp(req.file.path)
     .rotate()
     .resize(48, 48)
-    .toFile(req.file.path.split('.')[0] + '_THUMB.' + req.file.path.split('.')[1])
+    .toFile(req.file.path.split('.')[0] + req.query.timestamp + '_THUMB.' + req.file.path.split('.')[1])
     .then(() => {
       return sharp(req.file.path)
       .rotate()
       .resize(175, 175)
-      .toFile(req.file.path.split('.')[0] + '_SMALL.' + req.file.path.split('.')[1])
+      .toFile(req.file.path.split('.')[0] + req.query.timestamp +  '_SMALL.' + req.file.path.split('.')[1])
       .then(() => {
         return sharp(req.file.path)
         .rotate()
         .resize(350, 350)
-        .toFile(req.file.path.split('.')[0] + '_MEDIUM.' + req.file.path.split('.')[1])
+        .toFile(req.file.path.split('.')[0] + req.query.timestamp +  '_MEDIUM.' + req.file.path.split('.')[1])
         .then(() => {
           return sharp(req.file.path)
           .rotate()
           .resize(600, 600)
-          .toFile(req.file.path.split('.')[0] + '_LARGE.' + req.file.path.split('.')[1])
+          .toFile(req.file.path.split('.')[0] + req.query.timestamp +  '_LARGE.' + req.file.path.split('.')[1])
           .then(() => {
             fs.unlink(req.file.path, error => debug_images(error)); 
             return res.status(200).send(req.body);
@@ -155,12 +155,12 @@ app.post('/post-images', (req, res) => {
       return sharp(image.path)
       .rotate()
       .resize(175, 175)
-      .toFile(image.path.split('.')[0] + '_SMALL.' + image.path.split('.')[1])
+      .toFile(image.path.split('.')[0] + req.query.timestamp +  '_SMALL.' + image.path.split('.')[1])
       .then(() => {
         return sharp(image.path)
         .rotate()
         .resize(600, 600)
-        .toFile(image.path.split('.')[0] + '_LARGE.' + image.path.split('.')[1])
+        .toFile(image.path.split('.')[0] + req.query.timestamp +  '_LARGE.' + image.path.split('.')[1])
         .then(() => {
           fs.unlink(image.path, error => debug_images(error)); 
         })
