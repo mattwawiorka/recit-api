@@ -408,7 +408,7 @@ const resolvers = {
             .then( user => {
                 if (!user) {
                     return twilio.messages.create({
-                        body: 'Here is your Rec-it access code: ' + code,
+                        body: 'Here is your Rec-Board access code: ' + code,
                         from: '+12034576851',
                         to: '+1' + args.phoneNumber
                     })
@@ -459,7 +459,7 @@ const resolvers = {
             .then( user => {
                 if (user) {
                     return twilio.messages.create({
-                        body: 'Here is your Rec-it access code: ' + code,
+                        body: 'Here is your Rec-Board access code: ' + code,
                         from: '+12034576851',
                         to: '+1' + args.phoneNumber
                     })
