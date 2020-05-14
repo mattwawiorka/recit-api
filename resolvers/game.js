@@ -160,7 +160,7 @@ const resolvers = {
                 order: [
                     ["dateTime", "ASC"]
                 ],
-                group: ['game.id', 'spots', 'spotsReserved'],
+                group: ['game.id', 'spots', 'spotsReserved', 'players', 'openSpots'],
             };
 
             if (category !== "ALL") {
